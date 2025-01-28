@@ -1,0 +1,158 @@
+---
+title: "Exposure Response Analysis"
+date: "Ver. 1.5.6"
+output: 
+  html_document:
+    css: styles-auth.css
+    toc: false
+    toc_float: false
+    number_sections: no
+runtime: shiny
+---
+
+```{r global, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+source("global.R")
+```
+
+
+```{r auth, echo = FALSE, eval = FALSE}
+## Authentication and log
+auth_ui(id = "auth")
+auth <- callModule(
+  module = auth_server,
+  id = "auth",
+  check_credentials = check_credentials(credentials) 
+)
+
+## To add user name in app somewhere
+# output$user <- renderText({auth$user})
+# textOutput("user")
+
+app_log <- eventReactive(input$create, {
+  d <- tibble(
+    date = Sys.Date(),
+    timestamp = Sys.time(),
+    user= auth$user,
+    exposure_icd10=input$exposure_icd10,
+    exposure_icd9=input$exposure_icd9,
+    exposure_icd8=input$exposure_icd8,
+    response_icd10=input$response_icd10,
+    response_icd9=input$response_icd9,
+    response_icd8=input$response_icd8)
+})
+observeEvent(input$create,{
+  if(!dir.exists("logs/")) dir.create("logs/")
+  fil_name <- paste0("logs/", auth$user, ".csv")
+  write_csv2(app_log(), file = paste0("logs/", auth$user, ".csv"), append = file.exists(fil_name))
+})
+```
+
+## Definitions
+
+```{r data, echo=FALSE}
+inputPanel(
+  textInput(inputId = "exposure_icd10", label = "Exposure ICD-10 Diagnoses:" , value = "^E11"),
+  textInput(inputId = "exposure_icd9", label = "Exposure ICD-9 Diagnoses:" , value = "^250A"),
+  textInput(inputId = "exposure_icd8", label = "Exposure ICD-8 Diagnoses:" , value = "^250"),
+  checkboxGroupInput(inputId = "exposure_src", label = "Source registries:", choices = src_choices, selected = src_choices)
+)
+inputPanel(
+  shiny::textInput(inputId = "response_icd10", label = "Response ICD-10 Diagnoses:" , value = "^I2[0-5]"),
+    textInput(inputId = "response_icd9", label = "Response ICD-9 Diagnoses:" , value = "^41[0-4]"),
+  textInput(inputId = "response_icd8", label = "Response ICD-8 Diagnoses:" , value = "^41[0-4]"),
+  checkboxGroupInput(inputId = "response_src", label = "Source registries:", choices = src_choices, selected = src_choices),
+)
+actionButton(inputId = "create", label = "Run")
+
+## Population definition
+dpop <- eventReactive(input$create, {
+  pop_exp_resp(
+    exposure_icd10 = input$exposure_icd10,
+    exposure_icd9 = input$exposure_icd9,
+    exposure_icd8 = input$exposure_icd8,
+    exposure_src = input$exposure_src,
+    response_icd10 = input$response_icd10,
+    response_icd9 = input$response_icd9,
+    response_icd8 = input$response_icd8,
+    response_src = input$response_src
+  )
+})
+
+## List of Exposure diagnoses 
+exposure_diagnoses <- eventReactive(input$create, {
+  search_diagnoses(
+    regex_icd10=input$exposure_icd10, 
+    regex_icd9=input$exposure_icd9, 
+    regex_icd8=input$exposure_icd8, 
+    registry_source=input$exposure_src
+  )
+})
+
+## List of Response diagnoses
+response_diagnoses <- eventReactive(input$create, {
+  search_diagnoses(
+    regex_icd10=input$response_icd10, 
+    regex_icd9=input$response_icd9, 
+    regex_icd8=input$response_icd8, 
+    registry_source=input$response_src
+  )
+})
+```
+
+<br>
+<br>
+
+## Results {.tabset}
+
+### About
+```{r, child = "child_about.Rmd"}
+
+```
+
+
+### Exposure
+
+```{r, child = "child_exposure.Rmd"}
+
+```
+
+
+### Response
+```{r, child = "child_response.Rmd"}
+
+```
+
+
+### Health
+```{r, child = "child_health.Rmd"}
+
+```
+
+
+### Survival Analysis
+```{r, child = "child_survival.Rmd"}
+
+```
+
+
+### Poisson Regression {.tabset}
+```{r, child = "child_poisson.Rmd"}
+
+```
+
+
+### Data Avaibility
+
+```{r}
+
+```
+
+
+### Download Report
+```{r, child = "child_report.Rmd"}
+
+```
+
+

@@ -1,0 +1,18 @@
+name: "Exposure Response Analysis"
+exclude: ["*.qs", "*.xlsx", "*.docx", "*.qmd"]
+navbar:
+  title: "Exposure Response Analysis"
+  type: default
+  right:
+    - text: "</> Source"
+      href: "https://github.com"
+output:
+  html_document:
+    theme: cosmo
+    highlight: textmate
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+    include:
+      after_body: footer.html
+    css: styles.css

@@ -1,0 +1,11 @@
+
+```{r, echo = FALSE}
+fluidPage(
+  renderUI({
+    withMathJax(HTML(readLines(rmarkdown::render(input = "README.md",
+                                                 output_format = rmarkdown::html_fragment(),
+                                                 quiet = TRUE
+    ))))
+  })
+)
+```

@@ -1,0 +1,41 @@
+
+If option *removing cases before the exposure diagnose* is not selected, response diagnoses that occurred before exposure diagnose, are set to date 1. If you change the setting, you need to run results again.
+
+```{r, echo = FALSE}
+inputPanel(
+  radioButtons(inputId = "newdiag_before", label = "Remove cases where response is before exposure diagnose:", choices = c(TRUE, FALSE), selected = FALSE)
+)
+
+dsurv <- eventReactive(input$create,{
+  create_dsurv(dpop = dpop(), 
+               data_response_diagnoses = response_diagnoses(), 
+               censoring_date = as.Date("2023-12-21"), 
+               newdiag_before = input$newdiag_before)
+})
+
+```
+
+
+
+#### Kaplan-Meier
+
+Survival analysis (Kaplan-Meier) tells how many will get the response diagnose after the exposure diagnose during the time.
+
+```{r, echo = FALSE}
+renderPlot({
+  plot_kaplan_meier(dsurv = dsurv())
+})
+```
+
+
+#### Competing Risk Analysis
+
+Competing Risk analysis compares risk after the exposure diagnose to the death or response diagnose.
+
+```{r, echo = FALSE}
+
+renderPlot({
+  plot_competing_risk(dsurv = dsurv())
+})
+```
+

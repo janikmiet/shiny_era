@@ -1,0 +1,148 @@
+
+```{r, echo=FALSE}
+inputPanel(
+  checkboxGroupInput(inputId = "response_extra", label = "Select extra responses:", choices = c("Fractures"), selected = "Fractures"),
+  sliderInput(inputId = "poisson_limits", label = "Incidence Ratio Limits:", min = 0.0, max = 40.0, value = c(0.3, 3), step = .1, dragRange = TRUE)
+)
+```
+
+
+```{r, echo = FALSE}
+results <- eventReactive(input$create,{
+  pirr(exposure_icd10 = regex_clean(input$exposure_icd10),
+       exposure_icd9 = regex_clean(input$exposure_icd9),
+       exposure_icd8 = regex_clean(input$exposure_icd8),
+       response_icd10 = regex_clean(input$response_icd10),
+       response_icd9 = regex_clean(input$response_icd9),
+       response_icd8 = regex_clean(input$response_icd8),
+       exposure_src = input$exposure_src,
+       response_src = input$response_src,
+       response_extra = input$response_extra,
+       limits =  input$poisson_limits)
+})
+```
+
+
+#### Response
+
+```{r, echo = FALSE}
+renderPlot({
+  results()[["DG"]][["plot1"]]
+})
+renderPlot({
+  results()[["DG"]][["plot2"]]
+})
+renderTable({
+  results()[["DG"]][["table"]]
+})
+```
+
+
+#### Mortality
+
+```{r, echo = FALSE}
+renderPlot({
+  results()[["Mortality"]][["plot1"]]
+})
+renderPlot({
+  results()[["Mortality"]][["plot2"]]
+})
+renderTable({
+  results()[["Mortality"]][["table"]]
+})
+```
+
+
+#### Extra
+
+
+```{r, echo=FALSE}
+renderPlot({
+  results()[["Any Fracture"]][["plot1"]]
+})
+renderPlot({
+  results()[["Any Fracture"]][["plot2"]]
+})
+renderTable({
+  results()[["Any Fracture"]][["table"]]
+})
+```
+
+
+```{r, echo=FALSE}
+renderPlot({
+  results()[["Ankle"]][["plot1"]]
+})
+renderPlot({
+  results()[["Ankle"]][["plot2"]]
+})
+renderTable({
+  results()[["Ankle"]][["table"]]
+})
+```
+
+
+
+```{r, echo=FALSE}
+renderPlot({
+  results()[["Forearm"]][["plot1"]]
+})
+renderPlot({
+  results()[["Forearm"]][["plot2"]]
+})
+renderTable({
+  results()[["Forearm"]][["table"]]
+})
+```
+
+
+```{r, echo=FALSE}
+renderPlot({
+  results()[["Hip"]][["plot1"]]
+})
+renderPlot({
+  results()[["Hip"]][["plot2"]]
+})
+renderTable({
+  results()[["Hip"]][["table"]]
+})
+```
+
+
+```{r, echo=FALSE}
+renderPlot({
+  results()[["Humerus"]][["plot1"]]
+})
+renderPlot({
+  results()[["Humerus"]][["plot2"]]
+})
+renderTable({
+  results()[["Humerus"]][["table"]]
+})
+```
+
+
+```{r, echo=FALSE}
+renderPlot({
+  results()[["Vertebral"]][["plot1"]]
+})
+renderPlot({
+  results()[["Vertebral"]][["plot2"]]
+})
+renderTable({
+  results()[["Vertebral"]][["table"]]
+})
+```
+
+```{r, echo=FALSE}
+renderPlot({
+  results()[["Osteoporotic"]][["plot1"]]
+})
+renderPlot({
+  results()[["Osteoporotic"]][["plot2"]]
+})
+renderTable({
+  results()[["Osteoporotic"]][["table"]]
+})
+```
+

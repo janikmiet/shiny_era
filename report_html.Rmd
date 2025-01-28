@@ -1,0 +1,570 @@
+---
+title: "Report: OSTPRE Data Analysis (version 1.4.9)"
+description: "This is an analysis of OSTPRE dataset."
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    number_sections: yes
+params:
+    exposure_icd10: "^G47"
+    exposure_icd9: ""
+    exposure_icd8: ""
+    exposure_src: ["avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa"]
+    response_icd10: "^F00|^F01|^F02|^F03|^G30"
+    response_icd9:  ""
+    response_icd8:  ""
+    response_src: ["avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa"]
+    newdiag_before: "No"
+    report_sections: ["Exposure", "Response", "Health", "Survival Analysis", "Poisson", "Data Avaibility"]
+    response_extra: ["Fractures"]
+    # poisson_limits: c(0.3, 3)
+    rendered_by_shiny: FALSE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 15, fig.height = 10)
+source("global.R")
+library(knitr)
+```
+
+# Parameters and Options
+
+Exposure ICD-10
+```{r}
+params$exposure_icd10
+```
+
+Exposure ICD-9
+```{r}
+params$exposure_icd9
+```
+
+Exposure ICD-9
+```{r}
+params$exposure_icd8
+```
+
+Exposure Registry Sources
+```{r}
+params$exposure_src
+```
+
+Response ICD-10
+```{r}
+params$response_icd10
+```
+
+Response ICD-9
+```{r}
+params$response_icd9
+```
+
+Response ICD-8
+```{r}
+params$response_icd8
+```
+
+Response Registry Sources
+```{r}
+params$response_src
+```
+
+
+Survival analysis: Remove cases where response is before exposure diagnose
+```{r}
+params$newdiag_before
+```
+
+Sections used in this report
+```{r}
+params$report_sections
+```
+
+Extra responses in Poisson Regression analysis
+```{r}
+params$extra_responses
+```
+
+
+```{r data}
+## Exposure populaation perustiedot
+dpop <- pop_exp_resp(exposure_icd10 = params$exposure_icd10,
+                    exposure_icd9 = params$exposure_icd9,
+                    exposure_icd8 = params$exposure_icd8,
+                    exposure_src = params$exposure_src,
+                    response_icd10 = params$response_icd10,
+                    response_icd9 = params$response_icd9,
+                    response_icd8 = params$response_icd8,
+                    response_src = params$response_src
+)
+
+## Exposure diagnoosit 
+exposure_diagnoses <- search_diagnoses(
+  regex_icd10=params$exposure_icd10, 
+  regex_icd9=params$exposure_icd9, 
+  regex_icd8=params$exposure_icd8, 
+  registry_source=params$exposure_src
+)
+## Response diagnoosit
+response_diagnoses <- search_diagnoses(
+  regex_icd10=params$response_icd10, 
+  regex_icd9=params$response_icd9, 
+  regex_icd8=params$response_icd8, 
+  registry_source=params$response_src
+)
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.10)  
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("# Exposure\\n")
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("## Plot: Exposure Population\\n")
+```
+
+```{r age, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+plot_exposure_agedist(dpop)
+table_exposure_agedist(dpop)
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.15)  
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("## Table: Selected Diagnoses\\n")
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("Exposure diagnoses includes following diagnoses. In this table all cases are listed (for example if same person has ICD-8, ICD-9 and ICD-10 diagnose, all those cases will be listed).\\n")
+```
+
+```{r selected_diagnoses_chunk, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+selected_diagnoses <- table_selected_exposure_diagnoses(dpop, exposure_diagnoses)
+DT::datatable( selected_diagnoses, 
+               options = list(
+                 # order = list(6, 'desc'),
+                 rownames = F
+                                                    
+))
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("## Venn Diagram: Registry overlap\\n")
+```
+
+```{r venn, echo = FALSE, eval = ("Exposure" %in% params$report_sections)}
+venn_plot1(exposure_diagnoses)
+venn_plot2(exposure_diagnoses)
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.2)  
+```
+
+
+
+```{r, echo=FALSE, eval = ("Response" %in% params$report_sections)}
+asis_output("# Response\\n")
+```
+
+
+```{r dplot_age2, echo=FALSE, eval = ("Response" %in% params$report_sections)}
+plot_response_agedist(dpop)
+table_response_agedist(dpop)
+```
+
+
+
+```{r, echo=FALSE, eval = ("Response" %in% params$report_sections)}
+asis_output("## Table: Response Diagnoses\\n")
+```
+
+```{r, echo=FALSE, eval = ("Response" %in% params$report_sections)}
+asis_output("Response diagnoses includes following diagnoses on exposure group:")
+```
+
+```{r selected_diagnoses_chunk2, echo = FALSE}
+selected_diagnoses2 <- table_selected_response_diagnoses(dpop, response_diagnoses)
+DT::datatable( selected_diagnoses2, 
+               options = list(
+                 rownames = F
+               ))
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.25)  
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("##  First Diagnose Registry Source\\n")
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("Venn diagram shows how the exposure diagnose codes are found in different registries. In this plot only first diagnose per person is listed.\\n")
+```
+
+```{r venn_resp1, echo = FALSE, eval = ("Exposure" %in% params$report_sections)}
+venn_plot1(response_diagnoses)
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("##  Venn diagram: Diagnoses Registry Overlap\\n")
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("Venn diagram shows how the exposure diagnose codes are found in different registries. In this plot only we can see in which registries we can find selected diagnoses per patient.\\n")
+```
+
+```{r venn_resp2, echo = FALSE, eval = ("Exposure" %in% params$report_sections)}
+venn_plot2(response_diagnoses)
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("## Exposure & Response Cross Tabulation\\n")
+```
+
+```{r crosstab, echo = FALSE, eval = ("Exposure" %in% params$report_sections)}
+# sjPlot::tab_xtab(var.row = dpop$exposure, var.col = dpop$response, title = "Population exposure and response diagnoses", show.row.prc = TRUE)
+plot_crosstabulation(dpop)
+```
+
+```{r, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
+asis_output("## Time difference\\n")
+tab_exp_resp(dpop)
+```
+
+
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.30)  
+```
+
+
+
+
+```{r, echo=FALSE, eval = ("Health" %in% params$report_sections)}
+asis_output("# Health\\n")
+```
+
+```{r, echo=FALSE, eval = ("Health" %in% params$report_sections)}
+asis_output("## Health Profile\\n")
+```
+
+```{r, echo=FALSE, eval = ("Health" %in% params$report_sections)}
+asis_output("This section compares exposure diagnoses group to population, which don't have the exposure. Section plots diagnoses which are more common.")
+```
+
+```{r spiderplot, eval = ("Health" %in% params$report_sections)}
+health_profile(dpop, diagnoses, params$exposure_icd10, params$exposure_src)
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.35)  
+```
+
+```{r, echo=FALSE, eval = ("Health" %in% params$report_sections)}
+asis_output("## Top ICD-10 Diagnoses\\n")
+```
+
+```{r, echo=FALSE, eval = ("Health" %in% params$report_sections)}
+asis_output("Diagnoses which has over 10 % gap between groups. Diagnoses are aggregated to 3 letters.")
+```
+
+```{r topicd10, eval = ("Health" %in% params$report_sections)}
+tbl_comparison <- tbl_icd10_comparison(dpop, diagnoses, params$exposure_icd10, params$exposure_src)
+plot_icd10_comparison(tbl_comparison)
+
+DT::datatable(tbl_comparison,
+              options = list(
+                order = list(6, 'desc'),
+                rownames = F
+              ))
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.4)   
+```
+
+```{r, echo=FALSE, eval = ("Survival Analysis" %in% params$report_sections)}
+asis_output("# Survival Analysis\\n")
+```
+
+```{r, echo=FALSE, eval = ("Survival Analysis" %in% params$report_sections)}
+asis_output("Select new diagnose group by regex-code to observe competing risk analysis plots. If option removing cases before the main diagnose is not selected, new diagnoses are set to date 1. If you change setting, you need to Run results again.")
+```
+
+```{r survival, eval = ("Survival Analysis" %in% params$report_sections)}
+dsurv <- create_dsurv(dpop, exposure_diagnoses)
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.45)  
+```
+
+```{r, echo=FALSE, eval = ("Survival Analysis" %in% params$report_sections)}
+asis_output("## Kaplan-Meier\\n")
+```
+
+```{r, echo=FALSE, eval = ("Survival Analysis" %in% params$report_sections)}
+asis_output("Survival analysis (Kaplan-Meier) tells how many will get the response diagnose after the exposure diagnose during the time.")
+```
+
+```{r kaplanmeier, eval = ("Survival Analysis" %in% params$report_sections)}
+plot_kaplan_meier(dsurv)
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.5)  
+```
+
+```{r, echo=FALSE, eval = ("Survival Analysis" %in% params$report_sections)}
+asis_output("## Competing Risk Analysis\\n")
+```
+
+```{r, echo=FALSE, eval = ("Survival Analysis" %in% params$report_sections)}
+asis_output("Competing Risk analysis compares risk after the main diagnose to death or to the new diagnose.")
+```
+
+```{r competing_risk, eval = ("Survival Analysis" %in% params$report_sections)}
+plot_competing_risk(dsurv)
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.55)  
+```
+
+```{r, echo=FALSE, eval = ("Poisson" %in% params$report_sections)}
+asis_output("# Poisson Regression\\n")
+```
+
+```{r poisson, eval = ("Poisson" %in% params$report_sections)}
+results <- pirr(
+  exposure_icd10 = regex_clean(params$exposure_icd10), 
+  exposure_icd9 = regex_clean(params$exposure_icd9), 
+  exposure_icd8 = regex_clean(params$exposure_icd8),  
+  exposure_src = params$exposure_src, 
+  response_icd10 = regex_clean(params$response_icd10), 
+  response_icd9 = regex_clean(params$response_icd9), 
+  response_icd8 = regex_clean(params$response_icd8), 
+  response_src = params$response_src, 
+  response_extra = params$response_extra,
+  limits =  c(.3, 3)#params$poisson_limits
+  )
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.6)  
+```
+
+```{r, echo=FALSE, eval = ("Poisson" %in% params$report_sections)}
+asis_output("## Response\\n")
+```
+
+```{r poisson_response, eval = ("Poisson" %in% params$report_sections)}
+results[["DG"]][["plot1"]]
+results[["DG"]][["plot2"]]
+results[["DG"]][["table"]]
+```
+
+```{r, echo=FALSE, eval = ("Poisson" %in% params$report_sections)}
+asis_output("## Mortality \\n")
+```
+
+```{r poisson_mortality, eval = ("Poisson" %in% params$report_sections)}
+results[["Mortality"]][["plot1"]]
+results[["Mortality"]][["plot2"]]
+results[["Mortality"]][["table"]]
+```
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.65)  
+```
+
+```{r, echo=FALSE, eval = ("Fractures" %in% params$vaste_extra)}
+asis_output("## Fractures\\n")
+```
+
+```{r poisson_extra1, eval = ("Fractures" %in% params$vaste_extra)}
+results[["Any Fracture"]][["plot1"]]
+results[["Any Fracture"]][["plot2"]]
+results[["Any Fracture"]][["table"]]
+```
+
+```{r poisson_extra2, eval = ("Fractures" %in% params$vaste_extra)}
+results[["Ankle"]][["plot1"]]
+results[["Ankle"]][["plot2"]]
+results[["Ankle"]][["table"]]
+```
+
+```{r poisson_extra3, eval = ("Fractures" %in% params$vaste_extra)}
+results[["Forearm"]][["plot1"]]
+results[["Forearm"]][["plot2"]]
+results[["Forearm"]][["table"]]
+```
+
+```{r poisson_extra4, eval = ("Fractures" %in% params$vaste_extra)}
+results[["Hip"]][["plot1"]]
+results[["Hip"]][["plot2"]]
+results[["Hip"]][["table"]]
+```
+
+```{r poisson_extra5, eval = ("Fractures" %in% params$vaste_extra)}
+results[["Humerus"]][["plot1"]]
+results[["Humerus"]][["plot2"]]
+results[["Humerus"]][["table"]]
+```
+
+```{r poisson_extra6, eval = ("Fractures" %in% params$vaste_extra)}
+results[["Vertebral"]][["plot1"]]
+results[["Vertebral"]][["plot2"]]
+results[["Vertebral"]][["table"]]
+```
+
+```{r poisson_extra7, eval = ("Fractures" %in% params$vaste_extra)}
+results[["Osteoporotic"]][["plot1"]]
+results[["Osteoporotic"]][["plot2"]]
+results[["Osteoporotic"]][["table"]]
+```
+
+
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.7)  
+```
+
+<!-- ```{r, echo=FALSE, eval = ("Data Avaibility" %in% params$report_sections)} -->
+<!-- asis_output("# Data Avaibility\\n") -->
+<!-- ``` -->
+
+<!-- ```{r, echo=FALSE, eval = ("Data Avaibility" %in% params$report_sections)} -->
+<!-- asis_output("For further analysis this section shows what OSTPRE questionnaire data is available on exposure diagnose population.") -->
+<!-- ``` -->
+
+<!-- ```{r datasurvey, eval = ("Data Avaibility" %in% params$report_sections)} -->
+<!-- plot_survey1 <- function(dpop){ -->
+
+<!--   popsize = length(unique(dpop$LOMNO1[dpop$koehenk == "exposure"])) -->
+
+<!--   ostpre_vastpaiv %>%  -->
+<!--     filter(LOMNO1 %in% dpop$LOMNO1[dpop$koehenk == "exposure"]) %>% -->
+<!--     pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%  -->
+<!--     filter(!is.na(value))  %>%  -->
+<!--     group_by(name) %>%  -->
+<!--     summarise(count = n()) %>%  -->
+<!--     mutate( -->
+<!--       pct = 100 * count / popsize -->
+<!--     ) -> dplot -->
+
+<!--   quest_right_order <- c("vpvmbl","vpvm025","vpvm05","vpvm10","vpvm15","vpvm20","vpvm25","vpvm30", "vpvmcov", "vpvmfpsbl", "vpvmfps3y","vpvmkfpsbl","vpvmkfps12","vpvmkfps24" ,"vpvmkfpspt","mpvmbl","mpvm05","mpvm10","mpvm15","mpvm20","mpvm25","mpvm30","mpvmfpsbl","mpvmfps3y") -->
+<!--   # quest_right_order[quest_right_order %in% unique(dplot$name)] -->
+<!--   dplot$name <- factor(dplot$name, levels = quest_right_order[quest_right_order %in% unique(dplot$name)]) -->
+
+<!--   ggplot(dplot) + -->
+<!--     # geom_bar(aes(x=reorder(name, quest_right_order[quest_right_order %in% unique(dplot$name)]), y=pct, fill = name), stat= "identity") + -->
+<!--     geom_bar(aes(x= name, y=pct, fill = name), stat= "identity") + -->
+<!--     geom_text(aes(x= name, y=pct, label = paste0(round(pct, 1), "% (", count, " answers)")), hjust = -.2) + -->
+<!--     hrbrthemes::theme_ipsum_rc() + -->
+<!--     theme(legend.position = "none") + -->
+<!--     labs(title = "Total Cohort", subtitle = "Number of answers in questionares" , x= "") + -->
+<!--     scale_y_continuous(limits = c(0, 120), breaks = c(0,25,50,75,100)) + -->
+<!--     coord_flip() -->
+
+<!-- } -->
+<!-- plot_survey1(dpop = dpop) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- if((params$rendered_by_shiny)) shiny::setProgress(0.8)   -->
+<!-- ``` -->
+
+<!-- ```{r, echo=FALSE, eval = ("Data Avaibility" %in% params$report_sections)} -->
+<!-- asis_output("## Original Cohort\\n") -->
+<!-- ``` -->
+
+<!-- ```{r datasurvey_original, eval = ("Data Avaibility" %in% params$report_sections)} -->
+<!-- plot_survey2 <- function(){ -->
+
+<!--   popsize = length(unique(dpop$LOMNO1[dpop$koehenk == "exposure" & dpop$LOMNO1 < 30000])) -->
+
+<!--   ostpre_vastpaiv %>%  -->
+<!--     filter(LOMNO1 %in% dpop$LOMNO1[dpop$koehenk == "exposure"] & LOMNO1 < 30000) %>% -->
+<!--     pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%  -->
+<!--     filter(!is.na(value))  %>%  -->
+<!--     group_by(name) %>%  -->
+<!--     summarise(count = n()) %>%  -->
+<!--     mutate( -->
+<!--       pct = 100 * count / popsize -->
+<!--     ) -> dplot -->
+
+<!--   quest_right_order <- c("vpvmbl","vpvm025","vpvm05","vpvm10","vpvm15","vpvm20","vpvm25","vpvm30", "vpvmcov", "vpvmfpsbl", "vpvmfps3y","vpvmkfpsbl","vpvmkfps12","vpvmkfps24" ,"vpvmkfpspt","mpvmbl","mpvm05","mpvm10","mpvm15","mpvm20","mpvm25","mpvm30","mpvmfpsbl","mpvmfps3y") -->
+<!--   # quest_right_order[quest_right_order %in% unique(dplot$name)] -->
+<!--   dplot$name <- factor(dplot$name, levels = quest_right_order[quest_right_order %in% unique(dplot$name)]) -->
+
+<!--   ggplot(dplot) + -->
+<!--     # geom_bar(aes(x=reorder(name, quest_right_order[quest_right_order %in% unique(dplot$name)]), y=pct, fill = name), stat= "identity") + -->
+<!--     geom_bar(aes(x= name, y=pct, fill = name), stat= "identity") + -->
+<!--     geom_text(aes(x= name, y=pct, label = paste0(round(pct, 1), "% (", count, " answers)")), hjust = -.2) + -->
+<!--     hrbrthemes::theme_ipsum_rc() + -->
+<!--     theme(legend.position = "none") + -->
+<!--     labs(title = "Original Cohort", subtitle = "Number of answers in questionares" , x= "") + -->
+<!--     scale_y_continuous(limits = c(0, 120), breaks = c(0,25,50,75,100)) + -->
+<!--     coord_flip() -->
+
+<!-- } -->
+<!-- plot_survey2() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- if((params$rendered_by_shiny)) shiny::setProgress(0.85)   -->
+<!-- ``` -->
+
+<!-- ```{r, echo=FALSE, eval = ("Data Avaibility" %in% params$report_sections)} -->
+<!-- asis_output("## Extra Cohort\\n") -->
+<!-- ``` -->
+
+<!-- ```{r datasurvey_extra, eval = ("Data Avaibility" %in% params$report_sections)} -->
+<!-- plot_survey3 <- function(){ -->
+
+<!--   popsize = length(unique(dpop$LOMNO1[dpop$koehenk == "exposure" & dpop$LOMNO1 >= 30000])) -->
+
+<!--   ostpre_vastpaiv %>%  -->
+<!--     filter(LOMNO1 %in% dpop$LOMNO1[dpop$koehenk == "exposure"] & LOMNO1 >= 30000) %>% -->
+<!--     pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%  -->
+<!--     filter(!is.na(value))  %>%  -->
+<!--     group_by(name) %>%  -->
+<!--     summarise(count = n()) %>%  -->
+<!--     mutate( -->
+<!--       pct = 100 * count / popsize -->
+<!--     ) -> dplot -->
+
+<!--   quest_right_order <- c("vpvmbl","vpvm025","vpvm05","vpvm10","vpvm15","vpvm20","vpvm25","vpvm30", "vpvmcov", "vpvmfpsbl", "vpvmfps3y","vpvmkfpsbl","vpvmkfps12","vpvmkfps24" ,"vpvmkfpspt","mpvmbl","mpvm05","mpvm10","mpvm15","mpvm20","mpvm25","mpvm30","mpvmfpsbl","mpvmfps3y") -->
+<!--   # quest_right_order[quest_right_order %in% unique(dplot$name)] -->
+<!--   dplot$name <- factor(dplot$name, levels = quest_right_order[quest_right_order %in% unique(dplot$name)]) -->
+
+<!--   ggplot(dplot) + -->
+<!--     # geom_bar(aes(x=reorder(name, quest_right_order[quest_right_order %in% unique(dplot$name)]), y=pct, fill = name), stat= "identity") + -->
+<!--     geom_bar(aes(x= name, y=pct, fill = name), stat= "identity") + -->
+<!--     geom_text(aes(x= name, y=pct, label = paste0(round(pct, 1), "% (", count, " answers)")), hjust = -.2) + -->
+<!--     hrbrthemes::theme_ipsum_rc() + -->
+<!--     theme(legend.position = "none") + -->
+<!--     labs(title = "Extra Cohort", subtitle = "Number of answers in questionares" , x= "") + -->
+<!--     scale_y_continuous(limits = c(0, 120), breaks = c(0,25,50,75,100)) + -->
+<!--     coord_flip() -->
+
+<!-- } -->
+<!-- plot_survey3() -->
+<!-- ``` -->
+
+```{r}
+if((params$rendered_by_shiny)) shiny::setProgress(0.9)  
+```
+
+

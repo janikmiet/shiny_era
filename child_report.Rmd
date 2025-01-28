@@ -1,0 +1,70 @@
+
+```{r, echo = FALSE}
+inputPanel(
+  # radioButtons("format", "Document format", c("PDF", "HTML", "Word"), inline = TRUE),
+  checkboxGroupInput(inputId = "report_sections", label = "Report Sections:", choices = c("Exposure", "Response", "Health", "Survival Analysis", "Poisson", "Data Avaibility"), selected = c("Exposure", "Response", "Health", "Survival Analysis", "Poisson", "Data Avaibility")),
+  radioButtons(inputId = "report_file", label = "Output file:", choices = c("html", "docx"), selected = "html"),
+  downloadButton('ostpre_report')
+)
+
+
+filename <- reactive({
+  fn <- paste0("report_", Sys.Date(), ".", input$report_file)
+  # if(input$report_file == "word"){
+  #   fn <-  paste0(fn,".docx")
+  # }
+  # # if(input$report_file == "html"){
+  # #   fn <-  paste0(fn,".html")
+  # # }
+  # if(input$report_file == "pdf"){
+  #   fn <-  paste0(fn,".pdf")
+  # }
+  return(fn)
+})
+
+output$ostpre_report <- downloadHandler(
+  filename = function(){
+    paste0("report_", Sys.Date(), ".", input$report_file)
+  },
+  content = function(file) {
+    withProgress(message = 'Rendering, please wait!', {
+      if(input$report_file == "docx"){
+        rfn <- "report_word.Rmd"
+        opf <- "word_document"
+      }
+      if(input$report_file == "pdf"){
+        rfn <- "report_word.Rmd"
+        opf <- "pdf_document"
+      }
+      if(input$report_file == "html"){
+        rfn <- "report_html.Rmd"
+        opf <- "html_document"
+      }
+      ## The Work
+      tempReport <- file.path(tempdir(), rfn)
+      file.copy(paste0(rfn), tempReport, overwrite = TRUE)
+rmarkdown::render(rfn,
+                  output_format = opf,
+                  output_file = file,
+                  params = list(exposure_icd10 = regex_clean(input$exposure_icd10),
+                                exposure_icd9 = regex_clean(input$exposure_icd9),
+                                exposure_icd8 = regex_clean(input$exposure_icd8),
+                                exposure_src = input$exposure_src,
+                                response_icd10 = regex_clean(input$response_icd10),
+                                response_icd9 = regex_clean(input$response_icd9),
+                                response_icd8 = regex_clean(input$response_icd8),
+                                response_src = input$response_src,
+                                newdiag_before = input$newdiag_before,
+                                report_sections = input$report_sections,
+                                response_extra = input$response_extra,
+                                # poisson_limits = input$poisson_limits,
+                                rendered_by_shiny = TRUE),
+                  envir = new.env(parent = globalenv())
+      )
+    }
+    )
+  }
+)
+
+```
+

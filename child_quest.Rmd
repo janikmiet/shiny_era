@@ -1,0 +1,109 @@
+
+
+For further analysis this section shows what OSTPRE questionnaire data is available on exposure diagnose population.
+
+```{r datasurvey, echo = FALSE}
+renderPlot({
+
+  popsize = length(unique(dpop()$LOMNO1[dpop()$koehenk == "exposure"]))
+
+  ostpre_vastpaiv %>%
+    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$koehenk == "exposure"]) %>%
+    pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%
+    filter(!is.na(value))  %>%
+    group_by(name) %>%
+    summarise(count = n()) %>%
+    mutate(
+      pct = 100 * count / popsize
+    ) -> dplot
+
+  quest_right_order <- c("vpvmbl","vpvm025","vpvm05","vpvm10","vpvm15","vpvm20","vpvm25","vpvm30", "vpvmcov", "vpvmfpsbl", "vpvmfps3y","vpvmkfpsbl","vpvmkfps12","vpvmkfps24" ,"vpvmkfpspt","mpvmbl","mpvm05","mpvm10","mpvm15","mpvm20","mpvm25","mpvm30","mpvmfpsbl","mpvmfps3y")
+  # quest_right_order[quest_right_order %in% unique(dplot$name)]
+  dplot$name <- factor(dplot$name, levels = quest_right_order[quest_right_order %in% unique(dplot$name)])
+
+  ggplot(dplot) +
+    # geom_bar(aes(x=reorder(name, quest_right_order[quest_right_order %in% unique(dplot$name)]), y=pct, fill = name), stat= "identity") +
+    geom_bar(aes(x= name, y=pct, fill = name), stat= "identity") +
+    geom_text(aes(x= name, y=pct, label = paste0(round(pct, 1), "% (", count, " answers)")), hjust = -.2) +
+    hrbrthemes::theme_ipsum_rc() +
+    theme(legend.position = "none") +
+    labs(title = "Total Cohort", subtitle = "Number of answers in questionares" , x= "") +
+    # scale_y_continuous(limits = c(0, 100)) +
+    scale_y_continuous(limits = c(0, 120), breaks = c(0,25,50,75,100)) +
+    coord_flip()
+
+})
+
+```
+
+#### Original Cohort
+
+```{r datasurvey_original, echo = FALSE}
+renderPlot({
+
+  popsize = length(unique(dpop()$LOMNO1[dpop()$koehenk == "exposure" & dpop()$LOMNO1 < 30000]))
+
+  ostpre_vastpaiv %>%
+    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$koehenk == "exposure"] & LOMNO1 < 30000) %>%
+    pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%
+    filter(!is.na(value))  %>%
+    group_by(name) %>%
+    summarise(count = n()) %>%
+    mutate(
+      pct = 100 * count / popsize
+    ) -> dplot
+
+  quest_right_order <- c("vpvmbl","vpvm025","vpvm05","vpvm10","vpvm15","vpvm20","vpvm25","vpvm30", "vpvmcov", "vpvmfpsbl", "vpvmfps3y","vpvmkfpsbl","vpvmkfps12","vpvmkfps24" ,"vpvmkfpspt","mpvmbl","mpvm05","mpvm10","mpvm15","mpvm20","mpvm25","mpvm30","mpvmfpsbl","mpvmfps3y")
+  # quest_right_order[quest_right_order %in% unique(dplot$name)]
+  dplot$name <- factor(dplot$name, levels = quest_right_order[quest_right_order %in% unique(dplot$name)])
+
+  ggplot(dplot) +
+    # geom_bar(aes(x=reorder(name, quest_right_order[quest_right_order %in% unique(dplot$name)]), y=pct, fill = name), stat= "identity") +
+    geom_bar(aes(x= name, y=pct, fill = name), stat= "identity") +
+    geom_text(aes(x= name, y=pct, label = paste0(round(pct, 1), "% (", count, " answers)")), hjust = -.2) +
+    hrbrthemes::theme_ipsum_rc() +
+    theme(legend.position = "none") +
+    labs(title = "Original Cohort", subtitle = "Number of answers in questionares" , x= "") +
+    scale_y_continuous(limits = c(0, 120), breaks = c(0,25,50,75,100)) +
+    coord_flip()
+
+})
+
+```
+
+#### Extra Cohort
+
+
+```{r datasurvey_extra, echo = FALSE}
+renderPlot({
+
+  popsize = length(unique(dpop()$LOMNO1[dpop()$koehenk == "exposure" & dpop()$LOMNO1 >= 30000]))
+
+  ostpre_vastpaiv %>%
+    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$koehenk == "exposure"] & LOMNO1 >= 30000) %>%
+    pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%
+    filter(!is.na(value))  %>%
+    group_by(name) %>%
+    summarise(count = n()) %>%
+    mutate(
+      pct = 100 * count / popsize
+    ) -> dplot
+
+  quest_right_order <- c("vpvmbl","vpvm025","vpvm05","vpvm10","vpvm15","vpvm20","vpvm25","vpvm30", "vpvmcov", "vpvmfpsbl", "vpvmfps3y","vpvmkfpsbl","vpvmkfps12","vpvmkfps24" ,"vpvmkfpspt","mpvmbl","mpvm05","mpvm10","mpvm15","mpvm20","mpvm25","mpvm30","mpvmfpsbl","mpvmfps3y")
+  # quest_right_order[quest_right_order %in% unique(dplot$name)]
+  dplot$name <- factor(dplot$name, levels = quest_right_order[quest_right_order %in% unique(dplot$name)])
+
+  ggplot(dplot) +
+    # geom_bar(aes(x=reorder(name, quest_right_order[quest_right_order %in% unique(dplot$name)]), y=pct, fill = name), stat= "identity") +
+    geom_bar(aes(x= name, y=pct, fill = name), stat= "identity") +
+    geom_text(aes(x= name, y=pct, label = paste0(round(pct, 1), "% (", count, " answers)")), hjust = -.2) +
+    hrbrthemes::theme_ipsum_rc() +
+    theme(legend.position = "none") +
+    labs(title = "Extra Cohort", subtitle = "Number of answers in questionares" , x= "") +
+    scale_y_continuous(limits = c(0, 120), breaks = c(0,25,50,75,100)) +
+    coord_flip()
+
+})
+
+```
+

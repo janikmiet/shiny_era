@@ -1,0 +1,170 @@
+
+#### Response Population 
+
+```{r ageplot_response, echo=FALSE}
+renderPlot({
+  plot_response_agedist(dat = dpop())
+})
+```
+
+
+```{r ageplot2_table, echo=FALSE}
+tbl_resp_age <-  eventReactive(input$create, {
+  table_response_agedist(dpop())
+})
+shiny::renderTable({tbl_resp_age()})
+```
+
+
+
+#### Table: Response Diagnoses
+
+Response diagnoses includes following diagnoses on exposure group:
+
+```{r selected_diagnoses_chunk2, echo = FALSE}
+## TODO use response_diagnoses()
+selected_diagnoses2 <- eventReactive(input$create, {
+  table_selected_response_diagnoses(dpop(), response_diagnoses())
+})
+
+DT::dataTableOutput("tbl_selected_diagnoses2")
+output$tbl_selected_diagnoses2 <- DT::renderDataTable( selected_diagnoses2() , 
+                                                       options = list(
+                                                         # order = list(6, 'desc'),
+                                                         rownames = F
+                                                         
+                                                       ))
+```
+
+
+
+#### First Diagnose Registry Source
+
+Venn diagram shows how the exposure diagnose codes are found in different registries. In this plot only first diagnose per person is listed.
+
+```{r, echo = FALSE}
+renderPlot({
+  venn_plot1(response_diagnoses())  
+})
+
+```
+
+
+#### Venn diagram: Diagnoses Registry Overlap
+
+Venn diagram shows how the exposure diagnose codes are found in different registries. In this plot only we can see in which registries we can find selected diagnoses per patient.
+
+```{r, echo = FALSE}
+renderPlot({
+  venn_plot2(response_diagnoses())
+})
+
+```
+
+
+
+
+#### Exposure & Response Cross Tabulation
+
+```{r crosstab, echo = FALSE}
+renderUI({
+  HTML(  
+    sjPlot::tab_xtab(var.row = dpop()$exposure, var.col = dpop()$response, title = "Population exposure and response diagnoses", show.row.prc = TRUE)$knitr
+         )
+})
+```
+
+
+
+#### Time difference
+
+```{r echo=FALSE}
+## Tän idea oli tehdä barplot, jossa on kuinka monta prosenttia exposure ennen responsee
+tab_exp_resp <- reactive({
+  d <- dpop() %>% 
+     filter(exposure == 1 & response == 1) %>% 
+  mutate(
+    exp_resp = ifelse(DATE < resp.DATE, 1, ifelse(DATE == resp.DATE, 0, -1))
+    # exp_resp = ifelse(exposure_date < response_date, 1, 0)
+  ) %>% 
+  group_by(exp_resp) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  mutate(
+    percentage = round(100 * n / nrow(dpop() %>% filter(exposure == 1 & response == 1)), 1),
+    exp_resp = factor(case_when(
+      exp_resp == 1 ~ "Exposure < Response",
+      exp_resp == 0 ~ "Exposure == Response",
+      exp_resp == -1 ~ "Exposure > Response"
+    ), levels = c("Exposure < Response", "Exposure == Response", "Exposure > Response"))
+  )
+  return(d)  
+})
+
+shiny::renderTable({tab_exp_resp()})
+```
+
+Diagnoses time difference (response - exposure)
+
+```{r echo=FALSE}
+d.boxplot <- reactive({
+  dpop() %>% 
+    filter(exposure == 1 & response == 1) %>% 
+    mutate(
+      categ = "Fun",
+      date_diff = as.numeric(resp.DATE - DATE),
+      date_diff2 = as.numeric((resp.DATE - DATE) / 365.25)
+    ) %>% 
+    select(categ, date_diff, date_diff2)
+})
+
+renderPlot({
+  ggplot(d.boxplot()) +
+    geom_boxplot(aes(x=categ, y=date_diff)) +
+    labs(title = "Time difference in Days (response - exposure)",
+         x="",
+         y="Days")
+})
+
+renderPlot({
+  ggplot(d.boxplot()) +
+    geom_boxplot(aes(x=categ, y=date_diff2)) +
+    labs(title = "Time difference in Years (response - exposure)",
+         x="",
+         y="Years")
+})
+
+
+d.boxplot.stats <- reactive({
+  d1 <- d.boxplot() %>% 
+    mutate(Stats = "Days") %>% 
+    group_by(Stats) %>% 
+    summarise(
+      mean = round(mean(date_diff), 3),
+      median = round(median(date_diff), 3),
+      sd = round(sd(date_diff), 3),
+      var = round(var(date_diff), 3),
+      min = round(min(date_diff), 3),
+      max = round(max(date_diff), 3)
+    )
+  
+  d2 <- d.boxplot() %>% 
+    mutate(Stats = "Years") %>% 
+    group_by(Stats) %>% 
+    summarise(
+      mean = round(mean(date_diff2), 3),
+      median = round(median(date_diff2), 3),
+      sd = round(sd(date_diff2), 3),
+      var = round(var(date_diff2), 3),
+      min = round(min(date_diff2), 3),
+      max = round(max(date_diff2), 3)
+    )
+  
+  d <- d1 %>% rbind(d2)
+  
+  return(d)
+})
+shiny::renderTable({d.boxplot.stats()})
+```
+

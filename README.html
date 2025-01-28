@@ -1,0 +1,152 @@
+
+
+
+<div id="exposure-response-analysis" class="section level2">
+<h2>Exposure Response Analysis</h2>
+<p>This tool is used for exploring population health with certain
+diagnoses. For example we want to explore sleep apnea patients (ICD-10
+code G47) and what other common diagnoses they have. Then we can select
+response diagnoses, for example hypertension (ICD-10 code I10), and
+explore how sleep apnea patients will get this diagnose during the
+time.</p>
+<p>Use regex code (ex. ^G47 | ^G31) to select diagnose groups. You can
+also select which registries are used as a source. Application is
+logging user input and runs. <strong>If selected group size is under 6
+person, results are not printed and error occur.</strong></p>
+<div id="common-data-model" class="section level3">
+<h3>Common Data model</h3>
+<div id="population" class="section level4">
+<h4>population</h4>
+<table>
+<colgroup>
+<col width="12%" />
+<col width="87%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">VARIABLE</th>
+<th align="left">DESCRIPTION</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">LOMNO1</td>
+<td align="left">person ID variable</td>
+</tr>
+<tr class="even">
+<td align="left">DATE_BIRTH</td>
+<td align="left">Date of person birthday</td>
+</tr>
+<tr class="odd">
+<td align="left">DATE_DEATH</td>
+<td align="left">Date of person death date or NA</td>
+</tr>
+<tr class="even">
+<td align="left">DATE_MIGRATION</td>
+<td align="left">Date of person migration or NA</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="diagnoses" class="section level4">
+<h4>diagnoses</h4>
+<table>
+<colgroup>
+<col width="12%" />
+<col width="87%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">VARIABLE</th>
+<th align="left">DESCRIPTION</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">LOMNO1</td>
+<td align="left">person ID variable</td>
+</tr>
+<tr class="even">
+<td align="left">DGREG</td>
+<td align="left">Information of diagnose registry. Example ICD10, ICD9
+or ICD8 or FRACTURES registry</td>
+</tr>
+<tr class="odd">
+<td align="left">SRC</td>
+<td align="left">Diagnose registry source. Example Hilmo, Cancer etc.
+healthcare registry</td>
+</tr>
+<tr class="even">
+<td align="left">DATE</td>
+<td align="left">Date of event</td>
+</tr>
+<tr class="odd">
+<td align="left">DG</td>
+<td align="left">Diagnose code</td>
+</tr>
+<tr class="even">
+<td align="left">ICD10_3LETTERS</td>
+<td align="left">NA or in case of ICD10 code, icd code in 3 letters</td>
+</tr>
+<tr class="odd">
+<td align="left">ICD10_CLASS</td>
+<td align="left"></td>
+</tr>
+<tr class="even">
+<td align="left">DATE_BIRTH</td>
+<td align="left">Person date of birth</td>
+</tr>
+<tr class="odd">
+<td align="left">AGE</td>
+<td align="left">Age of the event</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="changes" class="section level3">
+<h3>Changes</h3>
+<table>
+<colgroup>
+<col width="11%" />
+<col width="11%" />
+<col width="77%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Date</th>
+<th align="left">Version</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">2025/11/18</td>
+<td align="left">1.5.6</td>
+<td align="left">Report added. Still lot of adjustment needs be
+done.</td>
+</tr>
+<tr class="even">
+<td align="left">2024/11/18</td>
+<td align="left">1.5.5</td>
+<td align="left">First version of ERA Shiny</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="useful-links" class="section level3">
+<h3>Useful links:</h3>
+<ul>
+<li><a href="https://www.terveysportti.fi/apps/icd/">ICD-10 Codes
+(Terveysportti)</a></li>
+<li><a href="https://koodistopalvelu.kanta.fi/codeserver/pages/classification-view-page.xhtml?classificationKey=23">ICD-10
+Codes (Koodistopalvelu)</a></li>
+<li><a href="https://www.julkari.fi/handle/10024/131850">ICD-9
+Codes</a></li>
+<li><a href="https://www.julkari.fi/handle/10024/135324">ICD-8
+Codes</a></li>
+<li><a href="https://hypebright.nl/index.php/en/2020/05/25/ultimate-cheatsheet-for-regex-in-r-2/">regex
+cheatsheet</a></li>
+</ul>
+</div>
+</div>
