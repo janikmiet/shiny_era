@@ -3,12 +3,16 @@
 For further analysis this section shows what OSTPRE questionnaire data is available on exposure diagnose population.
 
 ```{r datasurvey, echo = FALSE}
+# Data For This Child
+ostpre_vastpaiv <- arrow::read_parquet(file = paste0(loc, "ostpre_vastpaiv.parquet"))
+
+## Code visualizing
 renderPlot({
 
-  popsize = length(unique(dpop()$LOMNO1[dpop()$koehenk == "exposure"]))
+  popsize = length(unique(dpop()$LOMNO1[dpop()$GROUP == "exposure"]))
 
   ostpre_vastpaiv %>%
-    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$koehenk == "exposure"]) %>%
+    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$GROUP == "exposure"]) %>%
     pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%
     filter(!is.na(value))  %>%
     group_by(name) %>%
@@ -41,10 +45,10 @@ renderPlot({
 ```{r datasurvey_original, echo = FALSE}
 renderPlot({
 
-  popsize = length(unique(dpop()$LOMNO1[dpop()$koehenk == "exposure" & dpop()$LOMNO1 < 30000]))
+  popsize = length(unique(dpop()$LOMNO1[dpop()$GROUP == "exposure" & dpop()$LOMNO1 < 30000]))
 
   ostpre_vastpaiv %>%
-    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$koehenk == "exposure"] & LOMNO1 < 30000) %>%
+    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$GROUP == "exposure"] & LOMNO1 < 30000) %>%
     pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%
     filter(!is.na(value))  %>%
     group_by(name) %>%
@@ -77,10 +81,10 @@ renderPlot({
 ```{r datasurvey_extra, echo = FALSE}
 renderPlot({
 
-  popsize = length(unique(dpop()$LOMNO1[dpop()$koehenk == "exposure" & dpop()$LOMNO1 >= 30000]))
+  popsize = length(unique(dpop()$LOMNO1[dpop()$GROUP == "exposure" & dpop()$LOMNO1 >= 30000]))
 
   ostpre_vastpaiv %>%
-    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$koehenk == "exposure"] & LOMNO1 >= 30000) %>%
+    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$GROUP == "exposure"] & LOMNO1 >= 30000) %>%
     pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%
     filter(!is.na(value))  %>%
     group_by(name) %>%

@@ -24,7 +24,6 @@ if(TRUE){
   loc = "_data/"
   population <- arrow::read_parquet(file = paste0(loc, "population.parquet"))
   diagnoses <- arrow::read_parquet(file = paste0(loc, "diagnoses.parquet"))
-  # ostpre_vastpaiv <- arrow::read_parquet(file = paste0(loc, "ostpre_vastpaiv.parquet"))
   data_codes <- arrow::read_parquet(file = paste0(loc, "data_codes.parquet"))## koodistot
 }
 ## Colors ------

@@ -145,7 +145,7 @@ response_diagnoses <- eventReactive(input$create, {
 
 ### Data Avaibility
 
-```{r}
+```{r, child = "child_quest.Rmd"}
 
 ```
 
