@@ -1,6 +1,6 @@
 ---
 title: "Exposure Response Analysis"
-date: "Ver. 1.5.6"
+date: "Ver. 1.5.7"
 output: 
   html_document:
     css: styles-auth.css
@@ -17,7 +17,7 @@ source("global.R")
 ```
 
 
-```{r auth, echo = FALSE, eval = FALSE}
+```{r auth, echo = FALSE, eval = eval_credentials}
 ## Authentication and log
 auth_ui(id = "auth")
 auth <- callModule(

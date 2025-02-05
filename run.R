@@ -10,7 +10,7 @@ if(FALSE){
 if(FALSE){
   # Datas should be in _data/ -folder. Names for the data: population, diagnoses, codes, questionnaires
   ## This is a example of common data model ETL scripts, which saves data from src location to _data
-  source("R/create_data.R") 
+  source("R/create_data_ostpre.R") 
 }
 
 

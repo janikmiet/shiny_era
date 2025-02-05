@@ -1,4 +1,4 @@
-## Shiny App: OSTPRE Explorer global.R
+## Shiny App: ERA Explorer global.R
 library(bslib)
 library(qs)
 library(tidyverse)
@@ -17,438 +17,58 @@ library(datasets)
 library(shinymanager)
 
 # Settings ------
+eval_credentials <- FALSE # Change to TRUE to have login page
+eval_ostpre <- TRUE # case for ostpre specific outputs
+
 ## Credentials ----
 if(file.exists("credentials.txt")) credentials <- read.table("credentials.txt", header = TRUE)
+
 ## Load Data ----
 if(TRUE){
-  loc = "_data/"
-  population <- arrow::read_parquet(file = paste0(loc, "population.parquet"))
-  diagnoses <- arrow::read_parquet(file = paste0(loc, "diagnoses.parquet"))
-  data_codes <- arrow::read_parquet(file = paste0(loc, "data_codes.parquet"))## koodistot
+  if(eval_ostpre == TRUE){
+    loc = "_data/" # for OSTPRE
+    population <- arrow::read_parquet(file = paste0(loc, "population.parquet"))
+    diagnoses <- arrow::read_parquet(file = paste0(loc, "diagnoses.parquet"))
+    data_codes <- arrow::read_parquet(file = paste0(loc, "data_codes.parquet"))## koodistot
+  }else{
+    loc = "data/"    # for synthetic data
+    population <- arrow::read_parquet(file = paste0(loc, "population_synth.parquet"))
+    diagnoses <- arrow::read_parquet(file = paste0(loc, "diagnoses_synth.parquet"))
+    data_codes <- arrow::read_parquet(file = paste0(loc, "data_codes.parquet"))## koodistot
+  }
+
 }
 ## Colors ------
 ## colors for exposure and response groups
 colors_border=c(rgb(0.8,0.2,0.5,0.9), rgb(0.2,0.5,0.5,0.9))
 colors_in=c( rgb(0.8,0.2,0.5,0.4) , rgb(0.2,0.5,0.5,0.4))
 ## Diagnose source -----
-src_choices <- unique(diagnoses$SRC)
+src_choices <- unique(diagnoses$SRC) # Select globally available registry sources 
 
-
-
-
-# OSTPREFUN Functions ------
+# OSTPREFUN Functions Copy Script ------
 
 ## This works in tuma
-# funclist <- list.files("./functions/", full.names = T)
-# sapply(funclist, source)
-## or this
-# library(ostprefun)
-
+if(FALSE){
+  funclist <- list.files("./functions/", full.names = T) ## Where OSTPREFUN functions are located
+  sapply(funclist, source)
+  # or this
+  # library(ostprefun)
+}
 
 ## Because sourcing functions does not work in ostpre.uef.fi, this is a shortcut
-## Writing all the functions/ file codes to one big R-file. Then copy-paste it to end of this global.R scripts.
+## writing all the functions/ file codes to one big R-file. Then copy-paste it to end of this global.R scripts.
 if(FALSE){
-  fils <- list.files("functions/", full.names = T)
+  fils <- list.files("functions/", full.names = T) # Where OSTPREFUN R files are located
   long_file <- ""
   for (i in fils) {
     fil <- readr::read_file(i)
     long_file <- paste0(long_file, "", fil)
   }
-  writeLines(long_file, "R/functions_ostprefun.R")
+  writeLines(long_file, "R/functions_ostprefun.R") ## Creates one R file
 }
+
+
 if(TRUE){
-  ## Copy-Paste the functions_ostprefun.R functions here: ##
-  
-  #' Poisson Regression Model
-  #'
-  #' Standardized Incidence Rations
-  #'
-  #' @import dplyr
-  #' @import lubridate
-  #' @import ggeffects
-  #' @import lmtest
-  #' @import ggplot2
-  #' @importFrom magrittr %>%
-  #'
-  #' @return list
-  #'
-  #' @examples
-  #'  \dontrun{
-  #'  pirr(altiste_icd10="^E11", altiste_icd9="^250A", altiste_icd8="^250", src_altiste=c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa"), vaste_icd10 = "^I2")
-  #' }
-  #' @export
-  
-  pirr <- function(
-    exposure_icd10 = "",
-    exposure_icd9 = "",
-    exposure_icd8 = "",
-    exposure_src = c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa"),
-    response_icd10 = "",
-    response_icd9 = "",
-    response_icd8 = "",
-    response_src = c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa"),
-    response_extra = c("Fractures"),
-    limits=c(0.3,3) ) {
-    
-    library(dplyr)
-    library(lubridate)
-    library(ggeffects)
-    library(lmtest)
-    library(ggplot2)
-    ## Käyttää aineistoja: ostpre_ic10, population, murtumat
-    if(FALSE){
-      ## Input Data and Vars // FOR TESTING
-      exposure_icd10 <- "^E11"
-      response_icd10 <- "^I10"
-      exposure_src <- c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa")
-      response_src <- c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa")
-      response_extra = c("murtumat")
-      limits <-  c(0.3,3) ## TODO onko nämä vakiot, vai pitäisikö pystyä muuttamaan?
-    }
-    
-    
-    ### Diagnoses ----
-    ## Altiste
-    dalt <- search_diagnoses(regex_icd10 = exposure_icd10,
-                             regex_icd9 = exposure_icd9,
-                             regex_icd8 = exposure_icd8,
-                             registry_source = exposure_src) %>%
-      arrange(LOMNO1, DATE) %>%
-      group_by(LOMNO1) %>%
-      summarise(DATE_EXPOSURE = first(DATE),
-                DG = first(DG) ## TODO vaihda nimi kauttaaltaan
-      ) %>%
-      left_join(population, by = "LOMNO1") %>%
-      mutate(ika_altiste = trunc((DATE_BIRTH %--% DATE_EXPOSURE) / years(1))) %>%
-      select(LOMNO1, DATE_EXPOSURE, ika_altiste, DG)
-    
-    ## Vaste
-    dvast <- search_diagnoses(regex_icd10 = response_icd10,
-                              regex_icd9 = response_icd9,
-                              regex_icd8 = response_icd8,
-                              registry_source = response_src) %>%
-      arrange(LOMNO1, DATE) %>%
-      group_by(LOMNO1) %>%
-      summarise(DATE_RESPONSE = first(DATE),
-                DG = first(DG) ## TODO vaihda nimi kauttaaltaan
-      ) %>%
-      left_join(population, by = "LOMNO1") %>%
-      mutate(AGE_RESPONSE = trunc((DATE_BIRTH %--% DATE_RESPONSE) / years(1))) %>%
-      select(LOMNO1, DATE_RESPONSE, AGE_RESPONSE, DG)
-    
-    ### Further data wrangling ----
-    
-    ## Altisteen ja vasteen yhdistys
-    d1 <- dvast |>
-      left_join(dalt, by=c("LOMNO1")) |>
-      mutate(
-        ## vasteen ja altisteen pvm ero
-        ero=as.numeric(lubridate::decimal_date(DATE_RESPONSE)-lubridate::decimal_date(DATE_EXPOSURE)),
-        ## vasteen ja altisteen aika faktoroitu, käytetään jatkossa luokittelevana tekijänä
-        caika=factor(case_when(
-          is.na(ero) | ero<0 ~ "0 No exposure",
-          ero < 1 ~ "1 exposure < 1y",
-          ero < 5 ~ "2 exposure 1-4y",
-          ero < 10 ~ "3 exposure 5-9y",
-          ero < 15 ~ "4 exposure 10-14y",
-          TRUE ~ "5 exposure 15+y",
-        ))
-      )
-    
-    ## Nyt vain aggrekoidaan ajan ja iän mukaan. Aiemmin ollut aliryhmät.
-    d1 <- d1 %>%
-      count(caika, AGE_RESPONSE)
-    
-    ## Seurannan aikarajojen muodostaminen
-    dat1 <- population |>
-      left_join(dvast %>% select(LOMNO1, DATE_RESPONSE), by = "LOMNO1") %>%
-      mutate(
-        kuol=as.integer(!is.na(DATE_DEATH)),
-        apvm=pmax(DATE_BIRTH,as.Date("1953-01-01"),na.rm="TRUE"),
-        epvm=pmin(DATE_DEATH,DATE_MIGRATION,as.Date("2022-12-31"),DATE_RESPONSE,na.rm = TRUE) ## TODO end date
-      )
-    ages <- c(20,50:90)*365.25
-    ## Perustiedot (päivämäärät) ja altisteen päivämäärät
-    cdat <- data.table::as.data.table(population) |>
-      left_join(dalt |> select(LOMNO1, c00pvm=DATE_EXPOSURE), by=c("LOMNO1")) |> # c00pvm on altistediagnoosi aika
-      mutate(
-        c01pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(1)),
-        c05pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(5)),
-        c10pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(10)),
-        c15pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(15))
-      )
-    ## split functions
-    dat2 <- dat1 |> heaven::lexisSeq(invars=c("LOMNO1","apvm","epvm","kuol"), varname="DATE_BIRTH", splitvector=ages, format="vector", value="agec")
-    dat3 <- dat2 |> heaven::lexisTwo(cdat, c("LOMNO1","apvm","epvm","kuol"),c("LOMNO1","c00pvm","c01pvm","c05pvm","c10pvm","c15pvm")) %>%
-      mutate(
-        ika =  round( as.numeric((apvm - DATE_BIRTH) / 365.25), 0)
-      )
-    
-    adat <- dat3 |>
-      mutate(
-        caika=factor(case_when(
-          c15pvm==1 ~ "5 exposure 15+y",
-          c10pvm==1 ~ "4 exposure 10-14y",
-          c05pvm==1 ~ "3 exposure 5-9y",
-          c01pvm==1 ~ "2 exposure 1-4y",
-          c00pvm==1 ~ "1 exposure < 1y",
-          TRUE ~ "0 No exposure"
-        )),
-        ikar=case_when(
-          agec<2 ~ 20,
-          TRUE ~ agec+48
-        ),
-        kesto=as.numeric(lubridate::decimal_date(epvm)-lubridate::decimal_date(apvm))
-      ) |>
-      filter(ika>=50) |> ### seuranta alkaa kun henkilö täyttää 50v (cancer-/murtuma-aineisto) /// OSTPRE Pelkkä ICD10 filt >= 65
-      group_by(ika,caika) |>
-      summarise(
-        pyrs=sum(kesto),
-        kuol=sum(kuol)
-      ) |>
-      left_join(d1, by=c("ika"="AGE_RESPONSE","caika")) |>
-      mutate(
-        across(everything(), ~ tidyr::replace_na(.,0)),
-        cever=factor(case_when(
-          caika=="0 No exposure" ~ "0 No exposure",
-          TRUE ~ "1 exposure"
-        ))
-      ) |>
-      filter(pyrs>0.01) ## altistusajan filtteri
-    
-    
-    ### Create diagnoses results ----
-    ## Tuloslistaus nimetään muuttujat
-    dglist <- c("kuol",names(d1)[3:ncol(d1)])
-    names(dglist) <- c("Mortality","DG")
-    tulos <- list()
-    
-    ### Tehdään Poisson analyysit tulos listaan
-    # i <- "kuol"
-    for (i in dglist) {
-      
-      #    adat$vaste <- adat[,dglist[i]][[1]]
-      adat$vaste <- adat[,i][[1]]
-      nimi <- names(dglist[dglist==i])
-      
-      n1 <- adat |>
-        group_by(caika) |>
-        summarise(
-          n=sum(vaste),
-          pyrs=sum(pyrs)
-        ) |>
-        mutate(rn=row_number())
-      m1 <- glm(vaste ~ splines::bs(ika) + caika, offset = log(pyrs), family = poisson(link = "log"), data = adat)
-      pval1 <- lmtest::coeftest(m1,vcov.=sandwich::vcovHC(m1,type="HC0"))
-      pres <- tibble(pval=c(NA,pval1[,"Pr(>|z|)"][grep("exposure",rownames(pval1))])) |> mutate(rn=row_number())
-      mdi <- tibble(ggeffects::predict_response(m1, terms=c("caika"), condition=(c(ika=70, pyrs=10000)))) |> mutate(rn=row_number())
-      mdp <- ggeffects::predict_response(m1, terms=c("caika"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(ika=70, pyrs=10000/mdi$predicted[1])))
-      
-      n2 <- adat |>
-        group_by(cever) |>
-        summarise(
-          n=sum(vaste),
-          pyrs=sum(pyrs)
-        ) |>
-        mutate(rn=row_number())
-      m2 <- glm(vaste ~ splines::bs(ika) + cever, offset = log(pyrs), family = poisson(link = "log"), data = adat)
-      pval2 <- lmtest::coeftest(m2,vcov.=sandwich::vcovHC(m2,type="HC0"))
-      pres2 <- tibble(pval=c(NA,pval2[,"Pr(>|z|)"][grep("exposure",rownames(pval2))])) |> mutate(rn=row_number())
-      mdi2 <- tibble(ggeffects::predict_response(m2, terms=c("cever"), condition=(c(ika=70, pyrs=10000)))) |> mutate(rn=row_number())
-      mdp2 <- ggeffects::predict_response(m2, terms=c("cever"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(ika=70, pyrs=10000/mdi2$predicted[1])))
-      #    mda2 <- ggeffects::predict_response(m2, terms=c("ikar","cever"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(pyrs=10000)))
-      mda2 <- ggeffects::predict_response(m2, terms=c("ika","cever"), condition=(c(pyrs=10000)))
-      
-      res <- NULL |>
-        bind_rows(mdp |> as.data.frame() |> mutate(rn=row_number()) |> filter(!is.na(x)) |> left_join(pres,by="rn") |> left_join(n1,by="rn") |> left_join(as.data.frame(mdi) |> select(rn,adj=predicted),by="rn")) |>
-        bind_rows(mdp2 |> as.data.frame() |> mutate(rn=row_number()) |> filter(!is.na(x)) |> left_join(pres2,by="rn") |> left_join(n2,by="rn") |> left_join(as.data.frame(mdi2) |> select(rn,adj=predicted),by="rn")) |>
-        mutate(crude=n/pyrs*10000) |>
-        select(factor=x,n,pyrs,crude,adj,SIR=predicted,conf.low,conf.high,pval)
-      
-      p1 <- plot(mdp) + ggplot2::scale_y_continuous(trans="log10",limits=limits) + ggplot2::labs(y="Standardized Incidence Ratio (SIR), log scale",x="",title=nimi)
-      p2 <- plot(mda2) + ggplot2::labs(y="Exposure per 10000 person years",x="Age",title=nimi,color="Response status") + ggplot2::theme(legend.position.inside=c(0.11,0.83))
-      
-      resl <- list(table=res,plot1=p1,plot2=p2)
-      
-      tulos[[nimi]] <- resl
-    }
-    
-    ## Fractures ------
-    if("Fractures" %in% response_extra & "FRACTURES" %in% unique(diagnoses$DREG)){
-      ### Vasteaineisto - murtumat
-      ## Altisteen ja vasteen yhdistys
-      pmur <- diagnoses |>
-      filter(DGREG == "FRACTURES") |>
-        # filter(LOMNO1 %in% unique(dalt$LOMNO1)) |> ## Tämä oli virhe ja aiheutti ongelmat
-        left_join(dalt %>% rename(DG_ALT = DG), by=c("LOMNO1")) |>
-        mutate(
-          ## vasteen ja altisteen pvm ero
-          ero=as.numeric(lubridate::decimal_date(DATE)-lubridate::decimal_date(DATE_EXPOSURE)),
-          ## vasteen ja altisteen aika faktoroitu, käytetään jatkossa luokittelevana tekijänä
-          caika=factor(case_when(
-            is.na(ero) | ero<0 ~ "0 No exposure",
-            ero < 1 ~ "1 exposure < 1y",
-            ero < 5 ~ "2 exposure 1-4y",
-            ero < 10 ~ "3 exposure 5-9y",
-            ero < 15 ~ "4 exposure 10-14y",
-            TRUE ~ "5 exposure 15+y",
-          ))
-        )
-      
-      ## aggrekoidaan aineisto murtuma_ikä ja altisteen_aika_murtumaan_nähden - mikä murtuma kyseessä
-      pmura <- pmur |>
-        rename(AGE_RESPONSE = AGE) |>
-        count(DG,AGE_RESPONSE,caika) |>
-        tidyr::pivot_wider(names_from=DG, values_from=n,values_fill=0) |>
-        mutate(
-          any_fracture=ankle+forearm+hip+humerus+vertebral,
-          typ=forearm+hip+humerus+vertebral
-        )
-      
-      ## Seurannan aikarajojen muodostaminen
-      dat1 <- population |>
-        mutate(
-          kuol=as.integer(!is.na(DATE_DEATH)),
-          apvm=pmax(DATE_BIRTH,as.Date("1953-01-01"),na.rm="TRUE"),
-          epvm=pmin(DATE_DEATH,DATE_MIGRATION,as.Date("2022-12-31"),na.rm = TRUE)
-        )
-      ages <- c(20,50:90)*365.25 ## TODO mikä tarkoitus tällä?
-      ## Perustiedot (päivämäärät) ja altisteen päivämäärät
-      cdat <- data.table::as.data.table(population) |>
-        left_join(dalt |> select(LOMNO1, c00pvm=DATE_EXPOSURE), by=c("LOMNO1")) |> # c00pvm on altistediagnoosi aika
-        mutate(
-          c01pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(1)),
-          c05pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(5)),
-          c10pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(10)),
-          c15pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(15))
-        )
-      ## split functions
-      dat2 <- dat1 |> heaven::lexisSeq(invars=c("LOMNO1","apvm","epvm","kuol"), varname="DATE_BIRTH", splitvector=ages, format="vector", value="agec")
-      dat3 <- dat2 |> heaven::lexisTwo(cdat, c("LOMNO1","apvm","epvm","kuol"),c("LOMNO1","c00pvm","c01pvm","c05pvm","c10pvm","c15pvm")) %>%
-        mutate(
-          ika =  round( as.numeric((apvm - DATE_BIRTH) / 365.25), 0)
-        )
-      
-      adat <- dat3 |>
-        mutate(
-          caika=factor(case_when(
-            c15pvm==1 ~ "5 exposure 15+y",
-            c10pvm==1 ~ "4 exposure 10-14y",
-            c05pvm==1 ~ "3 exposure 5-9y",
-            c01pvm==1 ~ "2 exposure 1-4y",
-            c00pvm==1 ~ "1 exposure < 1y",
-            TRUE ~ "0 No exposure"
-          )),
-          ikar=case_when(
-            agec<2 ~ 20,
-            TRUE ~ agec+48
-          ),
-          kesto=as.numeric(lubridate::decimal_date(epvm)-lubridate::decimal_date(apvm))
-        ) |>
-        filter(ika>=50) |>
-        group_by(ika,caika) |>
-        summarise(
-          pyrs=sum(kesto),
-          kuol=sum(kuol)
-        ) |>
-        left_join(pmura, by=c("ika"="AGE_RESPONSE","caika")) |>
-        mutate(
-          across(everything(), ~ tidyr::replace_na(.,0)),
-          cever=factor(case_when(
-            caika=="0 No exposure" ~ "0 No exposure",
-            TRUE ~ "1 exposure"
-          ))
-        ) |>
-        filter(pyrs>0.01) ## altistusajan filtteri
-      
-      
-      ### Create fractures results ----
-      
-      ## nimetään muuttujat
-      dglist <- c(names(pmura)[3:ncol(pmura)])
-      names(dglist) <- c("Ankle","Forearm","Hip","Humerus","Vertebral","Any Fracture","Osteoporotic")
-      tulos2 <- list()
-      
-      ### Tehdään Poisson analyysit tulos listaan
-      # i <- "kuol"
-      for (i in dglist) {
-        
-        #    adat$vaste <- adat[,dglist[i]][[1]]
-        adat$vaste <- adat[,i][[1]]
-        nimi <- names(dglist[dglist==i])
-        
-        n1 <- adat |>
-          group_by(caika) |>
-          summarise(
-            n=sum(vaste),
-            pyrs=sum(pyrs)
-          ) |>
-          mutate(rn=row_number())
-        m1 <- glm(vaste ~ splines::bs(ika) + caika, offset = log(pyrs), family = poisson(link = "log"), data = adat)
-        pval1 <- lmtest::coeftest(m1,vcov.=sandwich::vcovHC(m1,type="HC0"))
-        pres <- tibble(pval=c(NA,pval1[,"Pr(>|z|)"][grep("exposure",rownames(pval1))])) |> mutate(rn=row_number())
-        mdi <- tibble(ggeffects::predict_response(m1, terms=c("caika"), condition=(c(ika=70, pyrs=10000)))) |> mutate(rn=row_number())
-        mdp <- ggeffects::predict_response(m1, terms=c("caika"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(ika=70, pyrs=10000/mdi$predicted[1])))
-        
-        n2 <- adat |>
-          group_by(cever) |>
-          summarise(
-            n=sum(vaste),
-            pyrs=sum(pyrs)
-          ) |>
-          mutate(rn=row_number())
-        m2 <- glm(vaste ~ splines::bs(ika) + cever, offset = log(pyrs), family = poisson(link = "log"), data = adat)
-        pval2 <- lmtest::coeftest(m2,vcov.=sandwich::vcovHC(m2,type="HC0"))
-        pres2 <- tibble(pval=c(NA,pval2[,"Pr(>|z|)"][grep("exposure",rownames(pval2))])) |> mutate(rn=row_number())
-        mdi2 <- tibble(ggeffects::predict_response(m2, terms=c("cever"), condition=(c(ika=70, pyrs=10000)))) |> mutate(rn=row_number())
-        mdp2 <- ggeffects::predict_response(m2, terms=c("cever"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(ika=70, pyrs=10000/mdi2$predicted[1])))
-        #    mda2 <- ggeffects::predict_response(m2, terms=c("ika","cever"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(pyrs=10000)))
-        mda2 <- ggeffects::predict_response(m2, terms=c("ika","cever"), condition=(c(pyrs=10000)))
-        
-        res <- NULL |>
-          bind_rows(mdp |> as.data.frame() |> mutate(rn=row_number()) |> filter(!is.na(x)) |> left_join(pres,by="rn") |> left_join(n1,by="rn") |> left_join(as.data.frame(mdi) |> select(rn,adj=predicted),by="rn")) |>
-          bind_rows(mdp2 |> as.data.frame() |> mutate(rn=row_number()) |> filter(!is.na(x)) |> left_join(pres2,by="rn") |> left_join(n2,by="rn") |> left_join(as.data.frame(mdi2) |> select(rn,adj=predicted),by="rn")) |>
-          mutate(crude=n/pyrs*10000) |>
-          select(factor=x,n,pyrs,crude,adj,SIR=predicted,conf.low,conf.high,pval)
-        
-        ## TODO kokeile ilman limits-maaritysta && automaattinen limits haistelu?
-        # p1 <- plot(mdp) + ggplot2::scale_y_continuous(trans="log10") + ggplot2::labs(y="Standardized Incidence Ratio (SIR), log scale",x="",title=nimi)
-        p1 <- plot(mdp) + ggplot2::scale_y_continuous(trans="log10",limits=limits) + ggplot2::labs(y="Standardized Incidence Ratio (SIR), log scale",x="",title=nimi)
-        p2 <- plot(mda2) + ggplot2::labs(y="Exposure per 10000 person years",x="Age",title=nimi,color="Response status") + ggplot2::theme(legend.position.inside=c(0.11,0.83))
-        resl <- list(table=res,plot1=p1,plot2=p2)
-        tulos2[[nimi]] <- resl
-      }
-      
-      ## Diagnose and Extra class
-      tulos <- c(tulos, tulos2)
-      
-    }
-    ## Final result out
-    tulos
-  }
-  
-  #' Diagnosed Population
-  #'
-  #' Finds population which have selected ICD diagnoses
-  #'
-  #' @param regex_icd10 character.
-  #' @param regex_icd9 character.
-  #' @param regex_icd8 character.
-  #' @param registry_source vector of sources. Available sources are c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa")
-  #' @param groups vector of group names.  c("exposure", "no exposure")
-  #'
-  #' @return data frame
-  #'
-  #' @examples
-  #'  \dontrun{
-  #'  pop_dg(regex_icd10="^E11", regex_icd9="^250A", regex_icd8="^250", registry_source=c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa"), groups=c("exposure", "no exposure"))
-  #' }
-  #'
-  #' @importFrom magrittr %>%
-  #' @import dplyr
-  #' @import lubridate
-  #' @export
-  
   ## Population which has certain diagnoses
   pop_dg <- function(regex_icd10= "",
                      regex_icd9= "",
@@ -464,6 +84,8 @@ if(TRUE){
       regex_icd8= "^250"
       registry_source=c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa")
       groups = c("exposure", "no exposure")
+      data_diagnoses = diagnoses
+      data_population = population
     }
     
     dat <- search_diagnoses(regex_icd10=regex_clean(regex_icd10),
@@ -474,20 +96,20 @@ if(TRUE){
     )
     
     d1 <- dat %>%
-      arrange(LOMNO1, DATE) %>%
-      group_by(LOMNO1) %>%
+      arrange(ID, DATE) %>%
+      group_by(ID) %>%
       summarise(
         DATE = first(DATE),
         SRC = first(SRC),
         DGREG = first(DGREG),
       ) %>%
-      left_join(population, by = "LOMNO1") %>%
+      left_join(population, by = "ID") %>%
       mutate(GROUP = groups[1],  #"exposure" , # "no exposure" "exposure"
              AGE_DG = trunc((DATE_BIRTH %--% DATE) / years(1)))
     
     ## no exposure
     d2 <- data_population %>%
-      filter(!LOMNO1 %in% d1$LOMNO1) %>%
+      filter(!ID %in% d1$ID) %>%
       mutate(GROUP = groups[2],
              AGE_DG = NA, ## added bc of union_all() did not work.
              DATE = NA,
@@ -559,10 +181,10 @@ if(TRUE){
                    data_population = population,
                    data_diagnoses = diagnoses)  %>%
       rename_with(.fn = ~ paste0("resp.", .x, "")) %>%
-      rename(LOMNO1 = resp.LOMNO1)
+      rename(ID = resp.ID)
     ## Combine
     d <- exp %>%
-      left_join(resp, by = "LOMNO1") %>%
+      left_join(resp, by = "ID") %>%
       mutate(
         exposure = ifelse(!is.na(DATE), 1, 0),
         response = ifelse(!is.na(resp.DATE), 1, 0)
@@ -612,30 +234,32 @@ if(TRUE){
         filter(DGREG == "ICD10") %>%
         filter(SRC %in% registry_source) %>%
         filter(grepl(pattern = regex_icd10, x = DG)) %>%
-        select(LOMNO1, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
+        select(ID, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
     }
     if(regex_icd9 != ""){
       d2 <- data_diagnoses %>%
         filter(DGREG == "ICD9") %>%
         filter(SRC %in% registry_source) %>%
         filter(grepl(pattern = regex_icd9, x = DG))%>%
-        select(LOMNO1, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
+        select(ID, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
     }
     if(regex_icd8 != ""){
       d3 <- data_diagnoses %>%
         filter(DGREG == "ICD8") %>%
         filter(SRC %in% registry_source) %>%
         filter(grepl(pattern = regex_icd8, x = DG))%>%
-        select(LOMNO1, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
+        select(ID, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
     }
     ## Kaikki ICD rekisterit yhdessa.
     d <- d1 %>%
-      rbind(if(exists("d2")) d2) %>%
-      rbind(if(exists("d3")) d3) %>%
-      arrange(LOMNO1, DGREG, DATE)
-    ## Ulos kaikki diagnoosit (LOMNO1 voi olla useampi)
+      rbind(if(exists("d2") & nrow(d2)>0) d2) %>% 
+      rbind(if(exists("d3") & nrow(d3)>0) d3) 
+    d <- as_tibble(d) %>% arrange(ID, DGREG, DATE)
+
+    # d <- d %>% head(nrow(d)) %>% arrange(ID, DGREG, DATE)  ## TODO tämä tuottaa ongelman,
+    ## Ulos kaikki diagnoosit (ID voi olla useampi)
     ## Siita saadaan ARRANGE & FIRST ensimmainen diagnoosi per ICD-rekisteri
-    ## Sitten saadaan ARRANGE & FIRST ensimmainen per LOMNO1
+    ## Sitten saadaan ARRANGE & FIRST ensimmainen per ID
     return(d)
   }
   #' Venndiagram of registry sources
@@ -655,19 +279,19 @@ if(TRUE){
   #' @importFrom magrittr %>%
   #' @export
   venn_plot1 <- function(data = exposure_diagnoses){
-    ## Vain yksi diagnosi per lomno1 eli saadan ensimmaine sorsa
+    ## Vain yksi diagnosi per ID eli saadan ensimmaine sorsa
     dvenn <- data %>%
-      arrange(LOMNO1, DATE) %>%
-      group_by(LOMNO1) %>%
+      arrange(ID, DATE) %>%
+      group_by(ID) %>%
       summarise(
         SRC = first(SRC),
         DATE = first(DATE)) %>%
-      select(LOMNO1, SRC)
+      select(ID, SRC)
     
     ## Function to split
     split_tibble <- function(tibble, column = 'col') {
       temp <- tibble %>% split(., .[,column]) %>% lapply(., function(x) x[,setdiff(names(x),column)]) %>% unlist(.,recursive = F)
-      names(temp) <- gsub(pattern = ".LOMNO1", replacement = "", x = names(temp))
+      names(temp) <- gsub(pattern = ".ID", replacement = "", x = names(temp))
       return(temp)
     }
     x <- split_tibble(dvenn, 'SRC')
@@ -678,17 +302,17 @@ if(TRUE){
   venn_plot2 <- function(data = exposure_diagnoses){
     ## Otetaan yksi per src per lomno
     dvenn <- data %>%
-      arrange(LOMNO1, DATE) %>%
-      group_by(LOMNO1,SRC) %>%
+      arrange(ID, DATE) %>%
+      group_by(ID,SRC) %>%
       summarise(
         SRC = first(SRC),
         DATE = first(DATE)) %>%
-      select(LOMNO1, SRC)
+      select(ID, SRC)
     
     ## Function to split
     split_tibble <- function(tibble, column = 'col') {
       temp <- tibble %>% split(., .[,column]) %>% lapply(., function(x) x[,setdiff(names(x),column)]) %>% unlist(.,recursive = F)
-      names(temp) <- gsub(pattern = ".LOMNO1", replacement = "", x = names(temp))
+      names(temp) <- gsub(pattern = ".ID", replacement = "", x = names(temp))
       return(temp)
     }
     x <- split_tibble(dvenn, 'SRC')
@@ -698,7 +322,7 @@ if(TRUE){
   }
 }
 
-# Report functions -----
+# APPLICATION FUNCTIONS -----
 
 if(TRUE){
   ## Functions for Shiny App and Report
@@ -738,7 +362,7 @@ if(TRUE){
     d <- data_diagnoses %>% 
       group_by(DG, DGREG) %>%
       summarise(
-        patients = length(unique(LOMNO1)),
+        patients = length(unique(ID)),
         cases = n()
       ) %>%
       mutate(
@@ -775,7 +399,7 @@ if(TRUE){
   plot_response_agedist <- function(dat){
     d <- dat %>% 
       filter(resp.GROUP == "response") %>% 
-      select(LOMNO1, resp.AGE_DG, GROUP) %>% 
+      select(ID, resp.AGE_DG, GROUP) %>% 
       group_by(GROUP, resp.AGE_DG) %>%
       summarise(freq = n())
     
@@ -822,10 +446,10 @@ if(TRUE){
     koehenkiloita <- nrow(data_pop[data_pop$resp.GROUP == "response",])
     ## Kaikki valitut diagnoosit koko aikajanalla
     d <- data_diagnoses %>% 
-      filter(LOMNO1 %in% data_pop$LOMNO1[data_pop$resp.GROUP == "response"]) %>% ## VAIN EXPOSURE POPULAATIO. TODO MIETI OLISIKO FILTER JO response_diagnoses() funktiossa.
+      filter(ID %in% data_pop$ID[data_pop$resp.GROUP == "response"]) %>% ## VAIN EXPOSURE POPULAATIO. TODO MIETI OLISIKO FILTER JO response_diagnoses() funktiossa.
       group_by(DG, DGREG) %>%
       summarise(
-        patients = length(unique(LOMNO1)),
+        patients = length(unique(ID)),
         cases = n()
       ) %>%
       mutate(
@@ -855,6 +479,7 @@ if(TRUE){
   }
   
   plot_crosstabulation <- function(data_population){
+    # data_population <- dpop # debug
     sjPlot::tab_xtab(var.row = data_population$exposure, var.col = data_population$response, title = "Population exposure and response diagnoses", show.row.prc = TRUE) 
     ## TODO checkkaa html
     ## TODO voisiko excel parempi? openxlsx
@@ -884,7 +509,7 @@ if(TRUE){
   
   ## Tähän asti debugattu!
   
-  ### HEALTH -----
+  ## HEALTH -----
   
   health_profile <- function(data_population, data_diagnoses, exposure_icd10, exposure_src){
     
@@ -897,9 +522,9 @@ if(TRUE){
     d <- data_population
     # pop sizes
     popn <- d %>%
-      select(LOMNO1, GROUP) %>%
+      select(ID, GROUP) %>%
       group_by(GROUP) %>%
-      summarise(n_group=length(unique(LOMNO1)))
+      summarise(n_group=length(unique(ID)))
     ## add total group pop sizes
     d <- d %>%
       left_join(popn)
@@ -909,11 +534,11 @@ if(TRUE){
       filter(DGREG == "ICD10") %>% 
       filter(SRC %in% exposure_src) %>% 
       filter(!grepl(pattern = regex_clean(exposure_icd10), x = DG)) %>% ## Ei oteta exposure diagnooseja analyysiin
-      left_join(d %>% select(LOMNO1, GROUP, n_group)) %>%
+      left_join(d %>% select(ID, GROUP, n_group)) %>%
       group_by(GROUP, ICD10_CLASS) %>%
       summarise(
         cases=n(),
-        patients=length(unique(LOMNO1)),
+        patients=length(unique(ID)),
         n_group = first(n_group)
       ) %>%
       mutate(
@@ -927,8 +552,8 @@ if(TRUE){
       arrange(GROUP)
     data <- as.data.frame(data)
     rownames(data) <- data$GROUP  # new
-    data <- data[, 2:23]            # new
-    data <- rbind(rep(100,22) , rep(0,22) , data) # new
+    data <- data[, 2:ncol(data)]            # TODO tämä vähän epäselvä, miksi aiemmin olin laittanut tähän ncol ja seuraavaan ncol-1 (23 ja 22)
+    data <- rbind(rep(100,ncol(data)) , rep(0,ncol(data)) , data) # new
     
     # Custom the radarChart !
     radarchart( data, axistype=1 ,
@@ -957,10 +582,10 @@ if(TRUE){
     data_diagnoses %>%
       filter(DGREG == "ICD10") %>% 
       filter(SRC  %in% exposure_src) %>% 
-      filter(LOMNO1 %in% dpop$LOMNO1[dpop$GROUP == "exposure"] & !(grepl(pattern = regex_clean(exposure_icd10), DG))) %>% # for regex
+      filter(ID %in% dpop$ID[dpop$GROUP == "exposure"] & !(grepl(pattern = regex_clean(exposure_icd10), DG))) %>% # for regex
       group_by(ICD10_3LETTERS) %>%
       summarise(
-        patients = length(unique(LOMNO1))
+        patients = length(unique(ID))
       ) %>%
       mutate(
         exposure_group_pct = round(100 * patients / nrow(dpop[dpop$GROUP == "exposure",]), 1)
@@ -970,10 +595,10 @@ if(TRUE){
     data_diagnoses %>%
       filter(DGREG == "ICD10") %>% 
       filter(SRC  %in% exposure_src) %>% 
-      filter(LOMNO1 %in% dpop$LOMNO1[dpop$GROUP == "no exposure"]) %>%
+      filter(ID %in% dpop$ID[dpop$GROUP == "no exposure"]) %>%
       group_by(ICD10_3LETTERS) %>%
       summarise(
-        no_exposure_patients = length(unique(LOMNO1))
+        no_exposure_patients = length(unique(ID))
       ) %>%
       mutate(
         no_exposure_pct = round(100 * no_exposure_patients / nrow(dpop[dpop$GROUP == "no exposure",]), 1)
@@ -1011,11 +636,11 @@ if(TRUE){
       filter(GROUP == "exposure") %>%
       rename(exposure_date = DATE) %>%
       left_join(data_response_diagnoses %>%
-                  arrange(LOMNO1, DATE) %>%
-                  group_by(LOMNO1) %>%
+                  arrange(ID, DATE) %>%
+                  group_by(ID) %>%
                   summarise(response_date = first(DATE)) %>%
-                  select(LOMNO1, response_date),
-                by = "LOMNO1") %>%
+                  select(ID, response_date),
+                by = "ID") %>%
       mutate(
         epvm=pmin(DATE_MIGRATION, censoring_date, na.rm = TRUE)
       ) %>%
@@ -1027,12 +652,12 @@ if(TRUE){
     
     
     exposure_to_response %>%
-      select(LOMNO1, response_date, diagnose, dead, censoring) %>%
-      arrange(LOMNO1, response_date) %>%
+      select(ID, response_date, diagnose, dead, censoring) %>%
+      arrange(ID, response_date) %>%
       ## FILTER , take cases before 0 timepoint, yes/no
       filter(if(newdiag_before){diagnose >= 0 }else{is.numeric(diagnose)}) %>%
-      arrange(LOMNO1, response_date) %>%
-      group_by(LOMNO1) %>%
+      arrange(ID, response_date) %>%
+      group_by(ID) %>%
       summarise(diagnose = first(diagnose),
                 dead = first(dead),
                 censoring = first(censoring)) %>%
@@ -1052,7 +677,7 @@ if(TRUE){
     ## Mallinnetaan elinaika-analyysi
     # library(survival)
     surv_object <- survival::Surv(time = dsurv$value, event = dsurv$event)
-    fit1 <- survfit(surv_object ~ 1, data = dsurv, id = LOMNO1)
+    fit1 <- survfit(surv_object ~ 1, data = dsurv, id = ID)
     plot(fit1)
   }
   
@@ -1072,4 +697,354 @@ if(TRUE){
   }
 }
 
+## POISSON REGRESSION -----
+
+pirr <- function(
+    exposure_icd10 = "",
+    exposure_icd9 = "",
+    exposure_icd8 = "",
+    exposure_src = c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa"),
+    response_icd10 = "",
+    response_icd9 = "",
+    response_icd8 = "",
+    response_src = c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa"),
+    response_extra = c("Fractures"),
+    limits=c(0.3,3) ) {
+  
+  library(dplyr)
+  library(lubridate)
+  library(ggeffects)
+  library(lmtest)
+  library(ggplot2)
+  ## Käyttää aineistoja: ostpre_ic10, population, murtumat
+  if(FALSE){
+    ## Input Data and Vars // FOR TESTING
+    exposure_icd10 <- "^E11"
+    response_icd10 <- "^I10"
+    exposure_src <- c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa")
+    response_src <- c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa")
+    response_extra = c("murtumat")
+    limits <-  c(0.3,3) ## TODO onko nämä vakiot, vai pitäisikö pystyä muuttamaan?
+  }
+  
+  
+  ### Diagnoses ----
+  ## Altiste
+  dalt <- search_diagnoses(regex_icd10 = exposure_icd10,
+                           regex_icd9 = exposure_icd9,
+                           regex_icd8 = exposure_icd8,
+                           registry_source = exposure_src) %>%
+    arrange(ID, DATE) %>%
+    group_by(ID) %>%
+    summarise(DATE_EXPOSURE = first(DATE),
+              DG = first(DG) ## TODO vaihda nimi kauttaaltaan
+    ) %>%
+    left_join(population, by = "ID") %>%
+    mutate(ika_altiste = trunc((DATE_BIRTH %--% DATE_EXPOSURE) / years(1))) %>%
+    select(ID, DATE_EXPOSURE, ika_altiste, DG)
+  
+  ## Vaste
+  dvast <- search_diagnoses(regex_icd10 = response_icd10,
+                            regex_icd9 = response_icd9,
+                            regex_icd8 = response_icd8,
+                            registry_source = response_src) %>%
+    arrange(ID, DATE) %>%
+    group_by(ID) %>%
+    summarise(DATE_RESPONSE = first(DATE),
+              DG = first(DG) ## TODO vaihda nimi kauttaaltaan
+    ) %>%
+    left_join(population, by = "ID") %>%
+    mutate(AGE_RESPONSE = trunc((DATE_BIRTH %--% DATE_RESPONSE) / years(1))) %>%
+    select(ID, DATE_RESPONSE, AGE_RESPONSE, DG)
+  
+  ### Further data wrangling ----
+  
+  ## Altisteen ja vasteen yhdistys
+  d1 <- dvast |>
+    left_join(dalt, by=c("ID")) |>
+    mutate(
+      ## vasteen ja altisteen pvm ero
+      ero=as.numeric(lubridate::decimal_date(DATE_RESPONSE)-lubridate::decimal_date(DATE_EXPOSURE)),
+      ## vasteen ja altisteen aika faktoroitu, käytetään jatkossa luokittelevana tekijänä
+      caika=factor(case_when(
+        is.na(ero) | ero<0 ~ "0 No exposure",
+        ero < 1 ~ "1 exposure < 1y",
+        ero < 5 ~ "2 exposure 1-4y",
+        ero < 10 ~ "3 exposure 5-9y",
+        ero < 15 ~ "4 exposure 10-14y",
+        TRUE ~ "5 exposure 15+y",
+      ))
+    )
+  
+  ## Nyt vain aggrekoidaan ajan ja iän mukaan. Aiemmin ollut aliryhmät.
+  d1 <- d1 %>%
+    count(caika, AGE_RESPONSE)
+  
+  ## Seurannan aikarajojen muodostaminen
+  dat1 <- population |>
+    left_join(dvast %>% select(ID, DATE_RESPONSE), by = "ID") %>%
+    mutate(
+      kuol=as.integer(!is.na(DATE_DEATH)),
+      apvm=pmax(DATE_BIRTH,as.Date("1953-01-01"),na.rm="TRUE"),
+      epvm=pmin(DATE_DEATH,DATE_MIGRATION,as.Date("2022-12-31"),DATE_RESPONSE,na.rm = TRUE) ## TODO end date
+    )
+  ages <- c(20,50:90)*365.25
+  ## Perustiedot (päivämäärät) ja altisteen päivämäärät
+  cdat <- data.table::as.data.table(population) |>
+    left_join(dalt |> select(ID, c00pvm=DATE_EXPOSURE), by=c("ID")) |> # c00pvm on altistediagnoosi aika
+    mutate(
+      c01pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(1)),
+      c05pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(5)),
+      c10pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(10)),
+      c15pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(15))
+    )
+  ## split functions
+  dat2 <- dat1 |> heaven::lexisSeq(invars=c("ID","apvm","epvm","kuol"), varname="DATE_BIRTH", splitvector=ages, format="vector", value="agec")
+  dat3 <- dat2 |> heaven::lexisTwo(cdat, c("ID","apvm","epvm","kuol"),c("ID","c00pvm","c01pvm","c05pvm","c10pvm","c15pvm")) %>%
+    mutate(
+      ika =  round( as.numeric((apvm - DATE_BIRTH) / 365.25), 0)
+    )
+  
+  adat <- dat3 |>
+    mutate(
+      caika=factor(case_when(
+        c15pvm==1 ~ "5 exposure 15+y",
+        c10pvm==1 ~ "4 exposure 10-14y",
+        c05pvm==1 ~ "3 exposure 5-9y",
+        c01pvm==1 ~ "2 exposure 1-4y",
+        c00pvm==1 ~ "1 exposure < 1y",
+        TRUE ~ "0 No exposure"
+      )),
+      ikar=case_when(
+        agec<2 ~ 20,
+        TRUE ~ agec+48
+      ),
+      kesto=as.numeric(lubridate::decimal_date(epvm)-lubridate::decimal_date(apvm))
+    ) |>
+    filter(ika>=50) |> ### seuranta alkaa kun henkilö täyttää 50v (cancer-/murtuma-aineisto) /// OSTPRE Pelkkä ICD10 filt >= 65
+    group_by(ika,caika) |>
+    summarise(
+      pyrs=sum(kesto),
+      kuol=sum(kuol)
+    ) |>
+    left_join(d1, by=c("ika"="AGE_RESPONSE","caika")) |>
+    mutate(
+      across(everything(), ~ tidyr::replace_na(.,0)),
+      cever=factor(case_when(
+        caika=="0 No exposure" ~ "0 No exposure",
+        TRUE ~ "1 exposure"
+      ))
+    ) |>
+    filter(pyrs>0.01) ## altistusajan filtteri
+  
+  
+  ### Create diagnoses results ----
+  ## Tuloslistaus nimetään muuttujat
+  dglist <- c("kuol",names(d1)[3:ncol(d1)])
+  names(dglist) <- c("Mortality","DG")
+  tulos <- list()
+  
+  ### Tehdään Poisson analyysit tulos listaan
+  # i <- "kuol"
+  for (i in dglist) {
+    
+    #    adat$vaste <- adat[,dglist[i]][[1]]
+    adat$vaste <- adat[,i][[1]]
+    nimi <- names(dglist[dglist==i])
+    
+    n1 <- adat |>
+      group_by(caika) |>
+      summarise(
+        n=sum(vaste),
+        pyrs=sum(pyrs)
+      ) |>
+      mutate(rn=row_number())
+    m1 <- glm(vaste ~ splines::bs(ika) + caika, offset = log(pyrs), family = poisson(link = "log"), data = adat)
+    pval1 <- lmtest::coeftest(m1,vcov.=sandwich::vcovHC(m1,type="HC0"))
+    pres <- tibble(pval=c(NA,pval1[,"Pr(>|z|)"][grep("exposure",rownames(pval1))])) |> mutate(rn=row_number())
+    mdi <- tibble(ggeffects::predict_response(m1, terms=c("caika"), condition=(c(ika=70, pyrs=10000)))) |> mutate(rn=row_number())
+    mdp <- ggeffects::predict_response(m1, terms=c("caika"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(ika=70, pyrs=10000/mdi$predicted[1])))
+    
+    n2 <- adat |>
+      group_by(cever) |>
+      summarise(
+        n=sum(vaste),
+        pyrs=sum(pyrs)
+      ) |>
+      mutate(rn=row_number())
+    m2 <- glm(vaste ~ splines::bs(ika) + cever, offset = log(pyrs), family = poisson(link = "log"), data = adat)
+    pval2 <- lmtest::coeftest(m2,vcov.=sandwich::vcovHC(m2,type="HC0"))
+    pres2 <- tibble(pval=c(NA,pval2[,"Pr(>|z|)"][grep("exposure",rownames(pval2))])) |> mutate(rn=row_number())
+    mdi2 <- tibble(ggeffects::predict_response(m2, terms=c("cever"), condition=(c(ika=70, pyrs=10000)))) |> mutate(rn=row_number())
+    mdp2 <- ggeffects::predict_response(m2, terms=c("cever"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(ika=70, pyrs=10000/mdi2$predicted[1])))
+    #    mda2 <- ggeffects::predict_response(m2, terms=c("ikar","cever"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(pyrs=10000)))
+    mda2 <- ggeffects::predict_response(m2, terms=c("ika","cever"), condition=(c(pyrs=10000)))
+    
+    res <- NULL |>
+      bind_rows(mdp |> as.data.frame() |> mutate(rn=row_number()) |> filter(!is.na(x)) |> left_join(pres,by="rn") |> left_join(n1,by="rn") |> left_join(as.data.frame(mdi) |> select(rn,adj=predicted),by="rn")) |>
+      bind_rows(mdp2 |> as.data.frame() |> mutate(rn=row_number()) |> filter(!is.na(x)) |> left_join(pres2,by="rn") |> left_join(n2,by="rn") |> left_join(as.data.frame(mdi2) |> select(rn,adj=predicted),by="rn")) |>
+      mutate(crude=n/pyrs*10000) |>
+      select(factor=x,n,pyrs,crude,adj,SIR=predicted,conf.low,conf.high,pval)
+    
+    p1 <- plot(mdp) + ggplot2::scale_y_continuous(trans="log10",limits=limits) + ggplot2::labs(y="Standardized Incidence Ratio (SIR), log scale",x="",title=nimi)
+    p2 <- plot(mda2) + ggplot2::labs(y="Exposure per 10000 person years",x="Age",title=nimi,color="Response status") + ggplot2::theme(legend.position.inside=c(0.11,0.83))
+    
+    resl <- list(table=res,plot1=p1,plot2=p2)
+    
+    tulos[[nimi]] <- resl
+  }
+  
+  ## Fractures ------
+  if("Fractures" %in% response_extra & "FRACTURES" %in% unique(diagnoses$DREG)){
+    ### Vasteaineisto - murtumat
+    ## Altisteen ja vasteen yhdistys
+    pmur <- diagnoses |>
+      filter(DGREG == "FRACTURES") |>
+      # filter(ID %in% unique(dalt$ID)) |> ## Tämä oli virhe ja aiheutti ongelmat
+      left_join(dalt %>% rename(DG_ALT = DG), by=c("ID")) |>
+      mutate(
+        ## vasteen ja altisteen pvm ero
+        ero=as.numeric(lubridate::decimal_date(DATE)-lubridate::decimal_date(DATE_EXPOSURE)),
+        ## vasteen ja altisteen aika faktoroitu, käytetään jatkossa luokittelevana tekijänä
+        caika=factor(case_when(
+          is.na(ero) | ero<0 ~ "0 No exposure",
+          ero < 1 ~ "1 exposure < 1y",
+          ero < 5 ~ "2 exposure 1-4y",
+          ero < 10 ~ "3 exposure 5-9y",
+          ero < 15 ~ "4 exposure 10-14y",
+          TRUE ~ "5 exposure 15+y",
+        ))
+      )
+    
+    ## aggrekoidaan aineisto murtuma_ikä ja altisteen_aika_murtumaan_nähden - mikä murtuma kyseessä
+    pmura <- pmur |>
+      rename(AGE_RESPONSE = AGE) |>
+      count(DG,AGE_RESPONSE,caika) |>
+      tidyr::pivot_wider(names_from=DG, values_from=n,values_fill=0) |>
+      mutate(
+        any_fracture=ankle+forearm+hip+humerus+vertebral,
+        typ=forearm+hip+humerus+vertebral
+      )
+    
+    ## Seurannan aikarajojen muodostaminen
+    dat1 <- population |>
+      mutate(
+        kuol=as.integer(!is.na(DATE_DEATH)),
+        apvm=pmax(DATE_BIRTH,as.Date("1953-01-01"),na.rm="TRUE"),
+        epvm=pmin(DATE_DEATH,DATE_MIGRATION,as.Date("2022-12-31"),na.rm = TRUE)
+      )
+    ages <- c(20,50:90)*365.25 ## TODO mikä tarkoitus tällä?
+    ## Perustiedot (päivämäärät) ja altisteen päivämäärät
+    cdat <- data.table::as.data.table(population) |>
+      left_join(dalt |> select(ID, c00pvm=DATE_EXPOSURE), by=c("ID")) |> # c00pvm on altistediagnoosi aika
+      mutate(
+        c01pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(1)),
+        c05pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(5)),
+        c10pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(10)),
+        c15pvm=lubridate::add_with_rollback(c00pvm,lubridate::years(15))
+      )
+    ## split functions
+    dat2 <- dat1 |> heaven::lexisSeq(invars=c("ID","apvm","epvm","kuol"), varname="DATE_BIRTH", splitvector=ages, format="vector", value="agec")
+    dat3 <- dat2 |> heaven::lexisTwo(cdat, c("ID","apvm","epvm","kuol"),c("ID","c00pvm","c01pvm","c05pvm","c10pvm","c15pvm")) %>%
+      mutate(
+        ika =  round( as.numeric((apvm - DATE_BIRTH) / 365.25), 0)
+      )
+    
+    adat <- dat3 |>
+      mutate(
+        caika=factor(case_when(
+          c15pvm==1 ~ "5 exposure 15+y",
+          c10pvm==1 ~ "4 exposure 10-14y",
+          c05pvm==1 ~ "3 exposure 5-9y",
+          c01pvm==1 ~ "2 exposure 1-4y",
+          c00pvm==1 ~ "1 exposure < 1y",
+          TRUE ~ "0 No exposure"
+        )),
+        ikar=case_when(
+          agec<2 ~ 20,
+          TRUE ~ agec+48
+        ),
+        kesto=as.numeric(lubridate::decimal_date(epvm)-lubridate::decimal_date(apvm))
+      ) |>
+      filter(ika>=50) |>
+      group_by(ika,caika) |>
+      summarise(
+        pyrs=sum(kesto),
+        kuol=sum(kuol)
+      ) |>
+      left_join(pmura, by=c("ika"="AGE_RESPONSE","caika")) |>
+      mutate(
+        across(everything(), ~ tidyr::replace_na(.,0)),
+        cever=factor(case_when(
+          caika=="0 No exposure" ~ "0 No exposure",
+          TRUE ~ "1 exposure"
+        ))
+      ) |>
+      filter(pyrs>0.01) ## altistusajan filtteri
+    
+    
+    ### Create fractures results ----
+    
+    ## nimetään muuttujat
+    dglist <- c(names(pmura)[3:ncol(pmura)])
+    names(dglist) <- c("Ankle","Forearm","Hip","Humerus","Vertebral","Any Fracture","Osteoporotic")
+    tulos2 <- list()
+    
+    ### Tehdään Poisson analyysit tulos listaan
+    # i <- "kuol"
+    for (i in dglist) {
+      
+      #    adat$vaste <- adat[,dglist[i]][[1]]
+      adat$vaste <- adat[,i][[1]]
+      nimi <- names(dglist[dglist==i])
+      
+      n1 <- adat |>
+        group_by(caika) |>
+        summarise(
+          n=sum(vaste),
+          pyrs=sum(pyrs)
+        ) |>
+        mutate(rn=row_number())
+      m1 <- glm(vaste ~ splines::bs(ika) + caika, offset = log(pyrs), family = poisson(link = "log"), data = adat)
+      pval1 <- lmtest::coeftest(m1,vcov.=sandwich::vcovHC(m1,type="HC0"))
+      pres <- tibble(pval=c(NA,pval1[,"Pr(>|z|)"][grep("exposure",rownames(pval1))])) |> mutate(rn=row_number())
+      mdi <- tibble(ggeffects::predict_response(m1, terms=c("caika"), condition=(c(ika=70, pyrs=10000)))) |> mutate(rn=row_number())
+      mdp <- ggeffects::predict_response(m1, terms=c("caika"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(ika=70, pyrs=10000/mdi$predicted[1])))
+      
+      n2 <- adat |>
+        group_by(cever) |>
+        summarise(
+          n=sum(vaste),
+          pyrs=sum(pyrs)
+        ) |>
+        mutate(rn=row_number())
+      m2 <- glm(vaste ~ splines::bs(ika) + cever, offset = log(pyrs), family = poisson(link = "log"), data = adat)
+      pval2 <- lmtest::coeftest(m2,vcov.=sandwich::vcovHC(m2,type="HC0"))
+      pres2 <- tibble(pval=c(NA,pval2[,"Pr(>|z|)"][grep("exposure",rownames(pval2))])) |> mutate(rn=row_number())
+      mdi2 <- tibble(ggeffects::predict_response(m2, terms=c("cever"), condition=(c(ika=70, pyrs=10000)))) |> mutate(rn=row_number())
+      mdp2 <- ggeffects::predict_response(m2, terms=c("cever"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(ika=70, pyrs=10000/mdi2$predicted[1])))
+      #    mda2 <- ggeffects::predict_response(m2, terms=c("ika","cever"), vcov_fun="vcovHC", vcov_type="HC0", condition=(c(pyrs=10000)))
+      mda2 <- ggeffects::predict_response(m2, terms=c("ika","cever"), condition=(c(pyrs=10000)))
+      
+      res <- NULL |>
+        bind_rows(mdp |> as.data.frame() |> mutate(rn=row_number()) |> filter(!is.na(x)) |> left_join(pres,by="rn") |> left_join(n1,by="rn") |> left_join(as.data.frame(mdi) |> select(rn,adj=predicted),by="rn")) |>
+        bind_rows(mdp2 |> as.data.frame() |> mutate(rn=row_number()) |> filter(!is.na(x)) |> left_join(pres2,by="rn") |> left_join(n2,by="rn") |> left_join(as.data.frame(mdi2) |> select(rn,adj=predicted),by="rn")) |>
+        mutate(crude=n/pyrs*10000) |>
+        select(factor=x,n,pyrs,crude,adj,SIR=predicted,conf.low,conf.high,pval)
+      
+      ## TODO kokeile ilman limits-maaritysta && automaattinen limits haistelu?
+      # p1 <- plot(mdp) + ggplot2::scale_y_continuous(trans="log10") + ggplot2::labs(y="Standardized Incidence Ratio (SIR), log scale",x="",title=nimi)
+      p1 <- plot(mdp) + ggplot2::scale_y_continuous(trans="log10",limits=limits) + ggplot2::labs(y="Standardized Incidence Ratio (SIR), log scale",x="",title=nimi)
+      p2 <- plot(mda2) + ggplot2::labs(y="Exposure per 10000 person years",x="Age",title=nimi,color="Response status") + ggplot2::theme(legend.position.inside=c(0.11,0.83))
+      resl <- list(table=res,plot1=p1,plot2=p2)
+      tulos2[[nimi]] <- resl
+    }
+    
+    ## Diagnose and Extra class
+    tulos <- c(tulos, tulos2)
+    
+  }
+  ## Final result out
+  tulos
+}
 

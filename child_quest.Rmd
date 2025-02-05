@@ -2,7 +2,7 @@
 
 For further analysis this section shows what OSTPRE questionnaire data is available on exposure diagnose population.
 
-```{r datasurvey, echo = FALSE}
+```{r datasurvey, echo = FALSE, eval=eval_ostpre}
 # Data For This Child
 ostpre_vastpaiv <- arrow::read_parquet(file = paste0(loc, "ostpre_vastpaiv.parquet"))
 
@@ -42,7 +42,7 @@ renderPlot({
 
 #### Original Cohort
 
-```{r datasurvey_original, echo = FALSE}
+```{r datasurvey_original, echo = FALSE, eval=eval_ostpre}
 renderPlot({
 
   popsize = length(unique(dpop()$LOMNO1[dpop()$GROUP == "exposure" & dpop()$LOMNO1 < 30000]))
@@ -78,7 +78,7 @@ renderPlot({
 #### Extra Cohort
 
 
-```{r datasurvey_extra, echo = FALSE}
+```{r datasurvey_extra, echo = FALSE, eval=eval_ostpre}
 renderPlot({
 
   popsize = length(unique(dpop()$LOMNO1[dpop()$GROUP == "exposure" & dpop()$LOMNO1 >= 30000]))
