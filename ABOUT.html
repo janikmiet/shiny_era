@@ -1,0 +1,69 @@
+
+
+
+<div id="exposure-response-analysis" class="section level2">
+<h2>Exposure Response Analysis</h2>
+<p>This tool is used for exploring population health with certain
+diagnoses. For example we want to explore sleep apnea patients (ICD-10
+code G47) and what other common diagnoses they have. Then we can select
+response diagnoses, for example hypertension (ICD-10 code I10), and
+explore how sleep apnea patients will get this diagnose during the
+time.</p>
+<p>Use regex code (ex. ^G47 | ^G31) to select diagnose groups. You can
+also select which registries are used as a source. Application is
+logging user input and runs.</p>
+<p><strong>If selected group size is under 6 person, results are not
+printed and error occur.</strong></p>
+</div>
+<div id="useful-links" class="section level2">
+<h2>Useful links:</h2>
+<ul>
+<li><a href="https://www.terveysportti.fi/apps/icd/">ICD-10 Codes
+(Terveysportti)</a></li>
+<li><a href="https://koodistopalvelu.kanta.fi/codeserver/pages/classification-view-page.xhtml?classificationKey=23">ICD-10
+Codes (Koodistopalvelu)</a></li>
+<li><a href="https://www.julkari.fi/handle/10024/131850">ICD-9
+Codes</a></li>
+<li><a href="https://www.julkari.fi/handle/10024/135324">ICD-8
+Codes</a></li>
+<li><a href="https://hypebright.nl/index.php/en/2020/05/25/ultimate-cheatsheet-for-regex-in-r-2/">regex
+cheatsheet</a></li>
+</ul>
+</div>
+<div id="changes" class="section level2">
+<h2>Changes</h2>
+<table>
+<colgroup>
+<col width="11%" />
+<col width="11%" />
+<col width="77%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Date</th>
+<th align="left">Version</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">2025/02/05</td>
+<td align="left">1.5.7</td>
+<td align="left">Added synthetic data. All other but Poisson results
+works with it (this is why report download does not work). Data does not
+describe real world case. Only Shows how app works.</td>
+</tr>
+<tr class="even">
+<td align="left">2025/01/18</td>
+<td align="left">1.5.6</td>
+<td align="left">Report added. Still lot of adjustment needs be
+done.</td>
+</tr>
+<tr class="odd">
+<td align="left">2024/11/18</td>
+<td align="left">1.5.5</td>
+<td align="left">First version of ERA Shiny</td>
+</tr>
+</tbody>
+</table>
+</div>

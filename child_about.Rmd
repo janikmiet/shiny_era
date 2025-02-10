@@ -2,7 +2,7 @@
 ```{r, echo = FALSE}
 fluidPage(
   renderUI({
-    withMathJax(HTML(readLines(rmarkdown::render(input = "README.md",
+    withMathJax(HTML(readLines(rmarkdown::render(input = "ABOUT.md",
                                                  output_format = rmarkdown::html_fragment(),
                                                  quiet = TRUE
     ))))
