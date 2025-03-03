@@ -17,8 +17,8 @@ library(datasets)
 library(shinymanager)
 
 # Settings ------
-eval_credentials <- FALSE # Change to TRUE to have login page
-eval_ostpre <- TRUE # case for ostpre specific outputs
+eval_credentials <- FALSE # TRUE for having a login page
+eval_ostpre <- TRUE       # TRUE for ostpre specific outputs / FALSE for test the program
 
 ## Credentials ----
 if(file.exists("credentials.txt")) credentials <- read.table("credentials.txt", header = TRUE)
@@ -29,20 +29,20 @@ if(TRUE){
     loc = "_data/" # for OSTPRE
     population <- arrow::read_parquet(file = paste0(loc, "population.parquet"))
     diagnoses <- arrow::read_parquet(file = paste0(loc, "diagnoses.parquet"))
-    data_codes <- arrow::read_parquet(file = paste0(loc, "data_codes.parquet"))## koodistot
+    data_codes <- arrow::read_parquet(file = paste0(loc, "data_codes.parquet"))
   }else{
     loc = "data/"    # for synthetic data
     population <- arrow::read_parquet(file = paste0(loc, "population_synth.parquet"))
     diagnoses <- arrow::read_parquet(file = paste0(loc, "diagnoses_synth.parquet"))
-    data_codes <- arrow::read_parquet(file = paste0(loc, "data_codes.parquet"))## koodistot
+    data_codes <- arrow::read_parquet(file = paste0(loc, "data_codes.parquet"))
   }
 
 }
-## Colors ------
+## Colors for App ------
 ## colors for exposure and response groups
 colors_border=c(rgb(0.8,0.2,0.5,0.9), rgb(0.2,0.5,0.5,0.9))
 colors_in=c( rgb(0.8,0.2,0.5,0.4) , rgb(0.2,0.5,0.5,0.4))
-## Diagnose source -----
+## Diagnose Data Sources -----
 src_choices <- unique(diagnoses$SRC) # Select globally available registry sources 
 
 # OSTPREFUN Functions Copy Script ------

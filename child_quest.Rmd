@@ -9,10 +9,10 @@ ostpre_vastpaiv <- arrow::read_parquet(file = paste0(loc, "ostpre_vastpaiv.parqu
 ## Code visualizing
 renderPlot({
 
-  popsize = length(unique(dpop()$LOMNO1[dpop()$GROUP == "exposure"]))
+  popsize = length(unique(dpop()$ID[dpop()$GROUP == "exposure"]))
 
   ostpre_vastpaiv %>%
-    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$GROUP == "exposure"]) %>%
+    filter(ID %in% dpop()$ID[dpop()$GROUP == "exposure"]) %>%
     pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%
     filter(!is.na(value))  %>%
     group_by(name) %>%
@@ -45,10 +45,10 @@ renderPlot({
 ```{r datasurvey_original, echo = FALSE, eval=eval_ostpre}
 renderPlot({
 
-  popsize = length(unique(dpop()$LOMNO1[dpop()$GROUP == "exposure" & dpop()$LOMNO1 < 30000]))
+  popsize = length(unique(dpop()$ID[dpop()$GROUP == "exposure" & dpop()$ID < 30000]))
 
   ostpre_vastpaiv %>%
-    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$GROUP == "exposure"] & LOMNO1 < 30000) %>%
+    filter(ID %in% dpop()$ID[dpop()$GROUP == "exposure"] & ID < 30000) %>%
     pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%
     filter(!is.na(value))  %>%
     group_by(name) %>%
@@ -81,10 +81,10 @@ renderPlot({
 ```{r datasurvey_extra, echo = FALSE, eval=eval_ostpre}
 renderPlot({
 
-  popsize = length(unique(dpop()$LOMNO1[dpop()$GROUP == "exposure" & dpop()$LOMNO1 >= 30000]))
+  popsize = length(unique(dpop()$ID[dpop()$GROUP == "exposure" & dpop()$ID >= 30000]))
 
   ostpre_vastpaiv %>%
-    filter(LOMNO1 %in% dpop()$LOMNO1[dpop()$GROUP == "exposure"] & LOMNO1 >= 30000) %>%
+    filter(ID %in% dpop()$ID[dpop()$GROUP == "exposure"] & ID >= 30000) %>%
     pivot_longer(cols = names(ostpre_vastpaiv)[4:27], ) %>%
     filter(!is.na(value))  %>%
     group_by(name) %>%

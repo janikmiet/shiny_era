@@ -19,6 +19,7 @@ Use regex code (ex. ^G47 | ^G31) to select diagnose groups. You can also select 
 
 | Date       | Version    |  Description | 
 | :--------- | :--------- | :--------------------------------------------------------------------- | 
+| 2025/03/03 | 1.5.9 | Progression bars are added to the application to help to know what app is doing. | 
 | 2025/02/05 | 1.5.7 | Added synthetic data. All other but Poisson results works with it (this is why report download does not work). Data does not describe real world case. Only Shows how app works. | 
 | 2025/01/18 | 1.5.6 | Report added. Still lot of adjustment needs be done. | 
 | 2024/11/18 | 1.5.5 | First version of ERA Shiny | 
