@@ -1,6 +1,6 @@
 ---
 title: "Exposure Response Analysis"
-date: "Ver. 1.5.7"
+date: "Ver. 1.5.9"
 output: 
   html_document:
     css: styles-auth.css

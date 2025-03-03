@@ -88,43 +88,53 @@ if(TRUE){
       data_population = population
     }
     
-    dat <- search_diagnoses(regex_icd10=regex_clean(regex_icd10),
-                            regex_icd9=regex_clean(regex_icd9),
-                            regex_icd8=regex_clean(regex_icd8),
-                            registry_source=registry_source,
-                            data_diagnoses=data_diagnoses
-    )
-    
-    d1 <- dat %>%
-      arrange(ID, DATE) %>%
-      group_by(ID) %>%
-      summarise(
-        DATE = first(DATE),
-        SRC = first(SRC),
-        DGREG = first(DGREG),
-      ) %>%
-      left_join(population, by = "ID") %>%
-      mutate(GROUP = groups[1],  #"exposure" , # "no exposure" "exposure"
-             AGE_DG = trunc((DATE_BIRTH %--% DATE) / years(1)))
-    
-    ## no exposure
-    d2 <- data_population %>%
-      filter(!ID %in% d1$ID) %>%
-      mutate(GROUP = groups[2],
-             AGE_DG = NA, ## added bc of union_all() did not work.
-             DATE = NA,
-             SRC = NA,
-             DGREG = NA
+    withProgress(message = "Creating population data",  value = 0, {
+      ## Phase 1
+      dat <- search_diagnoses(regex_icd10=regex_clean(regex_icd10),
+                              regex_icd9=regex_clean(regex_icd9),
+                              regex_icd8=regex_clean(regex_icd8),
+                              registry_source=registry_source,
+                              data_diagnoses=data_diagnoses
       )
+      incProgress(1/4)
+      ## Phase 2
+      d1 <- dat %>%
+        arrange(ID, DATE) %>%
+        group_by(ID) %>%
+        summarise(
+          DATE = first(DATE),
+          SRC = first(SRC),
+          DGREG = first(DGREG),
+        ) %>%
+        left_join(population, by = "ID") %>%
+        mutate(GROUP = groups[1],  #"exposure" , # "no exposure" "exposure"
+               AGE_DG = trunc((DATE_BIRTH %--% DATE) / years(1)))
+      incProgress(2/4)
+      ## Phase 3
+      ## no exposure
+      d2 <- data_population %>%
+        filter(!ID %in% d1$ID) %>%
+        mutate(GROUP = groups[2],
+               AGE_DG = NA, ## added bc of union_all() did not work.
+               DATE = NA,
+               SRC = NA,
+               DGREG = NA
+        )
+      incProgress(3/4)
+      
+      ## Phase 4
+      d <- rbind(d1,d2)
+      incProgress(4/4)
+      
+      ## Aineiston rajaus, jos liian vahan henkiloita
+      if(nrow(d %>% filter(GROUP == groups[1])) > 5){
+        return(d)
+      }else{
+        NULL
+      }
+      
+    })
     
-    d <- rbind(d1,d2)
-    
-    ## Aineiston rajaus, jos liian vahan henkiloita
-    if(nrow(d %>% filter(GROUP == groups[1])) > 5){
-      return(d)
-    }else{
-      NULL
-    }
   }
   
   
@@ -164,31 +174,46 @@ if(TRUE){
                            response_src = c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa"),
                            data_population = population,
                            data_diagnoses = diagnoses){
-    ## Exposure populaatio
-    exp <- pop_dg(regex_icd10 = regex_clean(exposure_icd10),
-                  regex_icd9 = regex_clean(exposure_icd9),
-                  regex_icd8 = regex_clean(exposure_icd8),
-                  registry_source = exposure_src,
-                  groups = c("exposure", "no exposure"),
-                  data_population = population,
-                  data_diagnoses = diagnoses)
-    ## Response Populaatio
-    resp <- pop_dg(regex_icd10 = regex_clean(response_icd10),
-                   regex_icd9 = regex_clean(response_icd9),
-                   regex_icd8 = regex_clean(response_icd8),
-                   registry_source = response_src,
-                   groups = c("response", "no response"),
-                   data_population = population,
-                   data_diagnoses = diagnoses)  %>%
-      rename_with(.fn = ~ paste0("resp.", .x, "")) %>%
-      rename(ID = resp.ID)
-    ## Combine
-    d <- exp %>%
-      left_join(resp, by = "ID") %>%
-      mutate(
-        exposure = ifelse(!is.na(DATE), 1, 0),
-        response = ifelse(!is.na(resp.DATE), 1, 0)
-      )
+    
+    withProgress(message = "Creating exposure and response data", value = 0, {
+      
+      incProgress(1/4)
+      
+      ## Phase 2
+      ## Exposure populaatio
+      exp <- pop_dg(regex_icd10 = regex_clean(exposure_icd10),
+                    regex_icd9 = regex_clean(exposure_icd9),
+                    regex_icd8 = regex_clean(exposure_icd8),
+                    registry_source = exposure_src,
+                    groups = c("exposure", "no exposure"),
+                    data_population = population,
+                    data_diagnoses = diagnoses)
+      
+      incProgress(2/4)
+      
+      ## Phase 3
+      ## Response Populaatio
+      resp <- pop_dg(regex_icd10 = regex_clean(response_icd10),
+                     regex_icd9 = regex_clean(response_icd9),
+                     regex_icd8 = regex_clean(response_icd8),
+                     registry_source = response_src,
+                     groups = c("response", "no response"),
+                     data_population = population,
+                     data_diagnoses = diagnoses)  %>%
+        rename_with(.fn = ~ paste0("resp.", .x, "")) %>%
+        rename(ID = resp.ID)
+      incProgress(3/4)
+      
+      ## Phase 4: Combine
+      d <- exp %>%
+        left_join(resp, by = "ID") %>%
+        mutate(
+          exposure = ifelse(!is.na(DATE), 1, 0),
+          response = ifelse(!is.na(resp.DATE), 1, 0)
+        )
+      incProgress(4/4)
+      
+    })
     return(d)
   }
   #' Regex Cleaner
@@ -229,37 +254,45 @@ if(TRUE){
                                registry_source=c("avohilmo", "erko", "hilmo", "local", "ksyy", "soshilmo", "syopa"),
                                data_diagnoses=diagnoses
   ){
-    if(regex_icd10 != ""){
-      d1 <- data_diagnoses %>%
-        filter(DGREG == "ICD10") %>%
-        filter(SRC %in% registry_source) %>%
-        filter(grepl(pattern = regex_icd10, x = DG)) %>%
-        select(ID, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
-    }
-    if(regex_icd9 != ""){
-      d2 <- data_diagnoses %>%
-        filter(DGREG == "ICD9") %>%
-        filter(SRC %in% registry_source) %>%
-        filter(grepl(pattern = regex_icd9, x = DG))%>%
-        select(ID, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
-    }
-    if(regex_icd8 != ""){
-      d3 <- data_diagnoses %>%
-        filter(DGREG == "ICD8") %>%
-        filter(SRC %in% registry_source) %>%
-        filter(grepl(pattern = regex_icd8, x = DG))%>%
-        select(ID, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
-    }
-    ## Kaikki ICD rekisterit yhdessa.
-    d <- d1 %>%
-      rbind(if(exists("d2") & nrow(d2)>0) d2) %>% 
-      rbind(if(exists("d3") & nrow(d3)>0) d3) 
-    d <- as_tibble(d) %>% arrange(ID, DGREG, DATE)
-
-    # d <- d %>% head(nrow(d)) %>% arrange(ID, DGREG, DATE)  ## TODO tämä tuottaa ongelman,
-    ## Ulos kaikki diagnoosit (ID voi olla useampi)
-    ## Siita saadaan ARRANGE & FIRST ensimmainen diagnoosi per ICD-rekisteri
-    ## Sitten saadaan ARRANGE & FIRST ensimmainen per ID
+    
+    withProgress(message = "Creating diagnoses data", value = 0, {
+      incProgress(1/5)
+      if(regex_icd10 != ""){
+        d1 <- data_diagnoses %>%
+          filter(DGREG == "ICD10") %>%
+          filter(SRC %in% registry_source) %>%
+          filter(grepl(pattern = regex_icd10, x = DG)) %>%
+          select(ID, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
+      }
+      incProgress(2/5)
+      if(regex_icd9 != ""){
+        d2 <- data_diagnoses %>%
+          filter(DGREG == "ICD9") %>%
+          filter(SRC %in% registry_source) %>%
+          filter(grepl(pattern = regex_icd9, x = DG))%>%
+          select(ID, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
+      }
+      incProgress(3/5)
+      if(regex_icd8 != ""){
+        d3 <- data_diagnoses %>%
+          filter(DGREG == "ICD8") %>%
+          filter(SRC %in% registry_source) %>%
+          filter(grepl(pattern = regex_icd8, x = DG))%>%
+          select(ID, DGREG, SRC, DATE, DG, ICD10_CLASS, ICD10_3LETTERS, AGE)
+      }
+      incProgress(4/5)
+      ## Kaikki ICD rekisterit yhdessa.
+      d <- d1 %>%
+        rbind(if(exists("d2") & nrow(d2)>0) d2) %>% 
+        rbind(if(exists("d3") & nrow(d3)>0) d3) 
+      d <- as_tibble(d) %>% arrange(ID, DGREG, DATE)
+      incProgress(5/5)
+      # d <- d %>% head(nrow(d)) %>% arrange(ID, DGREG, DATE)  ## TODO tämä tuottaa ongelman,
+      ## Ulos kaikki diagnoosit (ID voi olla useampi)
+      ## Siita saadaan ARRANGE & FIRST ensimmainen diagnoosi per ICD-rekisteri
+      ## Sitten saadaan ARRANGE & FIRST ensimmainen per ID
+      
+    })
     return(d)
   }
   #' Venndiagram of registry sources
@@ -280,6 +313,8 @@ if(TRUE){
   #' @export
   venn_plot1 <- function(data = exposure_diagnoses){
     ## Vain yksi diagnosi per ID eli saadan ensimmaine sorsa
+    withProgress(message = "Plotting Venn #1", value = 0, {
+      incProgress(1/4) 
     dvenn <- data %>%
       arrange(ID, DATE) %>%
       group_by(ID) %>%
@@ -287,7 +322,7 @@ if(TRUE){
         SRC = first(SRC),
         DATE = first(DATE)) %>%
       select(ID, SRC)
-    
+    incProgress(2/4) 
     ## Function to split
     split_tibble <- function(tibble, column = 'col') {
       temp <- tibble %>% split(., .[,column]) %>% lapply(., function(x) x[,setdiff(names(x),column)]) %>% unlist(.,recursive = F)
@@ -295,11 +330,17 @@ if(TRUE){
       return(temp)
     }
     x <- split_tibble(dvenn, 'SRC')
+    incProgress(3/4) 
     
-    ggVennDiagram(x) +
+    plt <- ggVennDiagram(x) +
       scale_fill_gradient(low = "#F4FAFE", high = "#4981BF")
+    incProgress(4/4) 
+    })
+    return(plt)
   }
   venn_plot2 <- function(data = exposure_diagnoses){
+    withProgress(message = "Plotting Venn #2", value = 0, {
+      incProgress(1/4) 
     ## Otetaan yksi per src per lomno
     dvenn <- data %>%
       arrange(ID, DATE) %>%
@@ -308,7 +349,7 @@ if(TRUE){
         SRC = first(SRC),
         DATE = first(DATE)) %>%
       select(ID, SRC)
-    
+    incProgress(2/4) 
     ## Function to split
     split_tibble <- function(tibble, column = 'col') {
       temp <- tibble %>% split(., .[,column]) %>% lapply(., function(x) x[,setdiff(names(x),column)]) %>% unlist(.,recursive = F)
@@ -316,9 +357,12 @@ if(TRUE){
       return(temp)
     }
     x <- split_tibble(dvenn, 'SRC')
-    
-    ggVennDiagram(x) +
+    incProgress(3/4) 
+    plt <- ggVennDiagram(x) +
       scale_fill_gradient(low = "#F4FAFE", high = "#4981BF")
+    incProgress(4/4) 
+    })
+    return(plt)
   }
 }
 
@@ -330,17 +374,21 @@ if(TRUE){
 
   ## Exposure ----- 
   plot_exposure_agedist <- function(dat){
+    withProgress(message = "Plotting Age Distribution", value = 0, {
+      incProgress(1/3) 
     d <- dat %>% 
       filter(GROUP == "exposure") %>% 
       group_by(AGE_DG) %>% 
       summarise(
         freq = n()
       )
+    incProgress(2/3) 
     title = paste("Exposure Population size", sum(d$freq))
     ggplot(data = d) +
       geom_bar(aes(x=AGE_DG, y= freq), color=colors_border[1] , fill = colors_in[1], stat = "identity") +
       hrbrthemes::theme_ipsum_rc() +
       labs(title = title, subtitle = "Age on first exposure diagnose date")
+    })
   }
   
   table_exposure_agedist <- function(dat){
@@ -357,6 +405,8 @@ if(TRUE){
   }
   
   table_selected_exposure_diagnoses <- function(data_pop, data_diagnoses){
+    withProgress(message = "Table of Exposure Diagnoses", value = 0, {
+      incProgress(1/3) 
     koehenkiloita <- nrow(data_pop[data_pop$GROUP == "exposure",])
     ## Kaikki valitut diagnoosit koko aikajanalla
     d <- data_diagnoses %>% 
@@ -373,7 +423,7 @@ if(TRUE){
       # left_join(icd8_codes %>% select(DG, DESC)) %>% 
       left_join(data_codes) %>%
       select(DG, DGREG, patients, cases, group_pct, DESC)
-    
+    incProgress(2/3) 
     ## Tietosuoja alle 6 tapaukset
     d <- d %>%
       filter(patients >= 6) %>%
@@ -390,6 +440,8 @@ if(TRUE){
             DESC = "Rest of the diagnoses"
           ) 
       )
+    incProgress(3/3) 
+    })
     return(d)
   }
   
@@ -397,24 +449,31 @@ if(TRUE){
   ## RESPONSE -------
   
   plot_response_agedist <- function(dat){
+    withProgress(message = "Plotting Response Age Distribution", value = 0, {
+      incProgress(1/3) 
     d <- dat %>% 
       filter(resp.GROUP == "response") %>% 
       select(ID, resp.AGE_DG, GROUP) %>% 
       group_by(GROUP, resp.AGE_DG) %>%
       summarise(freq = n())
-    
+    incProgress(2/3) 
     title = paste("Total Response Population size", sum(d$freq ))
-    ggplot(data = d) +
+    plt <- ggplot(data = d) +
       geom_bar(aes(x=resp.AGE_DG, y= freq, fill = GROUP, group=GROUP), 
                stat = "identity") +
       scale_fill_manual(values = colors_in) +
       hrbrthemes::theme_ipsum_rc() +
       labs(title = title, subtitle = "Age on first response diagnose date")
+    incProgress(3/3) 
+    })
+    return(plt)
   }
   
   table_response_agedist <- function(dat){
     ## Response population
     ## Exposure / No Exposure / All
+    withProgress(message = "Table Response Age Distribution", value = 0, {
+      incProgress(1/3) 
     d1 <- dat %>% 
       filter(resp.GROUP == "response") %>% 
       group_by(GROUP) %>% 
@@ -425,6 +484,7 @@ if(TRUE){
         age_mean = mean(resp.AGE_DG, na.rm = T),
         age_max = max(resp.AGE_DG, na.rm = T)
       )
+    incProgress(2/3) 
     d2 <- dat %>%
       filter(resp.GROUP == "response") %>%
       mutate(GROUP = "all") %>%
@@ -436,13 +496,17 @@ if(TRUE){
         age_mean = mean(resp.AGE_DG, na.rm = T),
         age_max = max(resp.AGE_DG, na.rm = T)
       )
-    
-    d1 %>% rbind(d2)
+    incProgress(3/3) 
+    d <- d1 %>% rbind(d2)
+    })
+    return(d)
   }
   
   
   
   table_selected_response_diagnoses <- function(data_pop, data_diagnoses){
+    withProgress(message = "Table Selected Response Diagnoses", value = 0, {
+      incProgress(1/3) 
     koehenkiloita <- nrow(data_pop[data_pop$resp.GROUP == "response",])
     ## Kaikki valitut diagnoosit koko aikajanalla
     d <- data_diagnoses %>% 
@@ -460,7 +524,7 @@ if(TRUE){
       # left_join(icd8_codes %>% select(DG, DESC)) %>% 
       left_join(data_codes) %>%
       select(DG, DGREG, patients, cases, group_pct, DESC)
-    
+    incProgress(2/3) 
     ## Tietosuoja alle 6 tapaukset
     d <- d %>% 
       filter(patients >= 6) %>%
@@ -475,6 +539,8 @@ if(TRUE){
             DESC = "Rest of the diagnoses"
           )
       )
+    incProgress(3/3) 
+    })
     return(d)
   }
   
@@ -484,26 +550,29 @@ if(TRUE){
     ## TODO checkkaa html
     ## TODO voisiko excel parempi? openxlsx
   }
-  
   tab_exp_resp <- function(dpop){
-    d <- dpop %>% 
-      filter(exposure == 1 & response == 1) %>% 
-      mutate(
-        exp_resp = ifelse(DATE < resp.DATE, 1, ifelse(DATE == resp.DATE, 0, -1))
-        # exp_resp = ifelse(exposure_date < response_date, 1, 0)
-      ) %>% 
-      group_by(exp_resp) %>% 
-      summarise(
-        n = n()
-      ) %>% 
-      mutate(
-        percentage = round(100 * n / nrow(dpop %>% filter(exposure == 1 & response == 1)), 1),
-        exp_resp = factor(case_when(
-          exp_resp == 1 ~ "Exposure < Response",
-          exp_resp == 0 ~ "Exposure == Response",
-          exp_resp == -1 ~ "Exposure > Response"
-        ), levels = c("Exposure < Response", "Exposure == Response", "Exposure > Response"))
-      )
+    withProgress(message = "Cross Tabulation", value = 0, {
+      incProgress(1/2) 
+      d <- dpop %>% 
+        filter(exposure == 1 & response == 1) %>% 
+        mutate(
+          exp_resp = ifelse(DATE < resp.DATE, 1, ifelse(DATE == resp.DATE, 0, -1))
+          # exp_resp = ifelse(exposure_date < response_date, 1, 0)
+        ) %>% 
+        group_by(exp_resp) %>% 
+        summarise(
+          n = n()
+        ) %>% 
+        mutate(
+          percentage = round(100 * n / nrow(dpop %>% filter(exposure == 1 & response == 1)), 1),
+          exp_resp = factor(case_when(
+            exp_resp == 1 ~ "Exposure < Response",
+            exp_resp == 0 ~ "Exposure == Response",
+            exp_resp == -1 ~ "Exposure > Response"
+          ), levels = c("Exposure < Response", "Exposure == Response", "Exposure > Response"))
+        )
+      incProgress(2/2) 
+    })
     return(d)  
   }
   
@@ -512,7 +581,8 @@ if(TRUE){
   ## HEALTH -----
   
   health_profile <- function(data_population, data_diagnoses, exposure_icd10, exposure_src){
-    
+    withProgress(message = "Creating Health Profile", value = 0, {
+      
     # data_population <- dpop
     # data_diagnoses <- diagnoses
     # exposure_icd10 <- regex_clean("^E11")
@@ -528,7 +598,7 @@ if(TRUE){
     ## add total group pop sizes
     d <- d %>%
       left_join(popn)
-    
+    incProgress(1/4) 
     # Groups / group & no exposure
     data_diagnoses %>%
       filter(DGREG == "ICD10") %>% 
@@ -545,7 +615,7 @@ if(TRUE){
         per100=cases/100 * n_group,
         pct = 100 * patients / n_group,
       )-> icd10_recoded_summary
-    
+    incProgress(2/4) 
     # create 'data'
     data <- icd10_recoded_summary %>% 
       pivot_wider(id_cols = GROUP, values_from = pct, names_from = ICD10_CLASS) %>%
@@ -554,6 +624,8 @@ if(TRUE){
     rownames(data) <- data$GROUP  # new
     data <- data[, 2:ncol(data)]            # TODO tämä vähän epäselvä, miksi aiemmin olin laittanut tähän ncol ja seuraavaan ncol-1 (23 ja 22)
     data <- rbind(rep(100,ncol(data)) , rep(0,ncol(data)) , data) # new
+    incProgress(3/4) 
+    })
     
     # Custom the radarChart !
     radarchart( data, axistype=1 ,
@@ -576,8 +648,9 @@ if(TRUE){
   
   
   tbl_icd10_comparison <- function(data_population_grouped, data_diagnoses, exposure_icd10, exposure_src){
+    withProgress(message = "Table ICD-10 Comparison", value = 0, {
     dpop <- data_population_grouped
-    
+    incProgress(1/4) 
     # Tarkastellaan TOP diagnoosit populaatiolla
     data_diagnoses %>%
       filter(DGREG == "ICD10") %>% 
@@ -590,7 +663,7 @@ if(TRUE){
       mutate(
         exposure_group_pct = round(100 * patients / nrow(dpop[dpop$GROUP == "exposure",]), 1)
       ) -> d1
-    
+    incProgress(2/4) 
     # Tarkastellaan TOP diagnoosit anti populaatiolla
     data_diagnoses %>%
       filter(DGREG == "ICD10") %>% 
@@ -603,26 +676,33 @@ if(TRUE){
       mutate(
         no_exposure_pct = round(100 * no_exposure_patients / nrow(dpop[dpop$GROUP == "no exposure",]), 1)
       ) -> d2
-    
-    left_join(d1,d2) %>%
+    incProgress(3/4) 
+    d <- left_join(d1,d2) %>%
       mutate(diff_pct = exposure_group_pct - no_exposure_pct) %>%
       left_join(
         data_codes %>% filter(CODECLASS == "ICD10") %>% select(DG, DESC), 
         by = c("ICD10_3LETTERS" = "DG"))
+    incProgress(4/4) 
+    })
+    return(d)
   }
   
   
   plot_icd10_comparison <- function(tbl){
+    withProgress(message = "Plotting ICD-10 Comparison", value = 0, {
     dplot <- tbl %>%
       filter(diff_pct > 10 ) %>%
       pivot_longer(cols = c(exposure_group_pct, no_exposure_pct))
-    
-    ggplot(dplot ) +
+    incProgress(1/2) 
+    plt <- ggplot(dplot ) +
       geom_bar(aes(x=reorder(ICD10_3LETTERS, -value), y=value, fill=name, group=name), stat = "identity", position = "dodge") +
       coord_flip() +
       scale_fill_manual(values = colors_in) +
       labs(x="diagnose", y="percentage", title = "Exposure group top diagnoses") +
       hrbrthemes::theme_ipsum_rc()
+    incProgress(2/2) 
+    })
+    return(plt)
   }
   
   
@@ -631,6 +711,7 @@ if(TRUE){
   ## SURVIVAL ----
   
   create_dsurv <- function(dpop, data_response_diagnoses, censoring_date = as.Date("2023-12-21"), newdiag_before = TRUE){
+    withProgress(message = "Creating Survival Data", value = 0, {
     #censoring_date <- as.Date("2023-12-21") ## TODO: ajankohta mihin asti on kuolleiden tiedot / Paivita
     exposure_to_response <- dpop %>%
       filter(GROUP == "exposure") %>%
@@ -649,9 +730,9 @@ if(TRUE){
              censoring = trunc((exposure_date %--% epvm) / days(1))
       ) %>%
       mutate(censoring = ifelse(is.na(dead), censoring, NA))
+    incProgress(1/2) 
     
-    
-    exposure_to_response %>%
+    d <- exposure_to_response %>%
       select(ID, response_date, diagnose, dead, censoring) %>%
       arrange(ID, response_date) %>%
       ## FILTER , take cases before 0 timepoint, yes/no
@@ -664,36 +745,49 @@ if(TRUE){
       mutate(diagnose = ifelse(diagnose < 0, 0 , diagnose)) %>%
       pivot_longer(cols = c(diagnose, dead, censoring)) %>%
       filter(!is.na(value))
+    incProgress(2/2) 
+    })
+    return(d)
   }
   
   
   
   plot_kaplan_meier <- function(dsurv){
+    withProgress(message = "Plotting Kaplan Meier", value = 0, {
     dsurv <- dsurv %>%
       # TODO jos uusi data, tähän filtteri vain group
       mutate(
         event = ifelse(name == "diagnose", 1, 0) ## Event: 0 = censoring/kuollut, 1 = dementia
       )
+    incProgress(1/3) 
     ## Mallinnetaan elinaika-analyysi
     # library(survival)
     surv_object <- survival::Surv(time = dsurv$value, event = dsurv$event)
+    incProgress(2/3) 
     fit1 <- survfit(surv_object ~ 1, data = dsurv, id = ID)
+    incProgress(3/3) 
+    })
     plot(fit1)
   }
   
   plot_competing_risk <- function(dsurv){
+    withProgress(message = "Plotting Competing Risk", value = 0, {
     # Data
     dsurv <- dsurv %>%
       mutate(
         event = ifelse(name == "diagnose", 1, ifelse(name == "dead", 2, 3))
       )
+    incProgress(1/3) 
     # fitting a competing risks model
     CR <- cuminc(ftime = dsurv$value,
                  fstatus = dsurv$event,
                  cencode = 3)
-    
-    ggcompetingrisks(fit = CR, multiple_panels = F, xlab = "Days", ylab = "Cumulative incidence of event",title = "Competing Risks Analysis") +
+    incProgress(2/3) 
+    plt <- ggcompetingrisks(fit = CR, multiple_panels = F, xlab = "Days", ylab = "Cumulative incidence of event",title = "Competing Risks Analysis") +
       scale_color_manual(name="", values=c("blue","red"), labels=c("Response Diagnose", "Dead"))
+    incProgress(3/3) 
+    })
+    return(plt)
   }
 }
 
@@ -727,7 +821,7 @@ pirr <- function(
     limits <-  c(0.3,3) ## TODO onko nämä vakiot, vai pitäisikö pystyä muuttamaan?
   }
   
-  
+  withProgress(message = "Calculating SIR", value = 0, {
   ### Diagnoses ----
   ## Altiste
   dalt <- search_diagnoses(regex_icd10 = exposure_icd10,
@@ -742,6 +836,8 @@ pirr <- function(
     left_join(population, by = "ID") %>%
     mutate(ika_altiste = trunc((DATE_BIRTH %--% DATE_EXPOSURE) / years(1))) %>%
     select(ID, DATE_EXPOSURE, ika_altiste, DG)
+  incProgress(1/10) 
+  
   
   ## Vaste
   dvast <- search_diagnoses(regex_icd10 = response_icd10,
@@ -756,6 +852,8 @@ pirr <- function(
     left_join(population, by = "ID") %>%
     mutate(AGE_RESPONSE = trunc((DATE_BIRTH %--% DATE_RESPONSE) / years(1))) %>%
     select(ID, DATE_RESPONSE, AGE_RESPONSE, DG)
+  incProgress(2/10) 
+  
   
   ### Further data wrangling ----
   
@@ -775,6 +873,7 @@ pirr <- function(
         TRUE ~ "5 exposure 15+y",
       ))
     )
+  incProgress(3/10) 
   
   ## Nyt vain aggrekoidaan ajan ja iän mukaan. Aiemmin ollut aliryhmät.
   d1 <- d1 %>%
@@ -804,6 +903,7 @@ pirr <- function(
     mutate(
       ika =  round( as.numeric((apvm - DATE_BIRTH) / 365.25), 0)
     )
+  incProgress(4/10) 
   
   adat <- dat3 |>
     mutate(
@@ -836,13 +936,14 @@ pirr <- function(
       ))
     ) |>
     filter(pyrs>0.01) ## altistusajan filtteri
-  
+  incProgress(5/10) 
   
   ### Create diagnoses results ----
   ## Tuloslistaus nimetään muuttujat
   dglist <- c("kuol",names(d1)[3:ncol(d1)])
   names(dglist) <- c("Mortality","DG")
   tulos <- list()
+  incProgress(6/10) 
   
   ### Tehdään Poisson analyysit tulos listaan
   # i <- "kuol"
@@ -893,9 +994,10 @@ pirr <- function(
     
     tulos[[nimi]] <- resl
   }
+  incProgress(7/10) 
   
   ## Fractures ------
-  if("Fractures" %in% response_extra & "FRACTURES" %in% unique(diagnoses$DREG)){
+  if("Fractures" %in% response_extra & "FRACTURES" %in% unique(diagnoses$DGREG)){
     ### Vasteaineisto - murtumat
     ## Altisteen ja vasteen yhdistys
     pmur <- diagnoses |>
@@ -983,6 +1085,7 @@ pirr <- function(
       filter(pyrs>0.01) ## altistusajan filtteri
     
     
+    incProgress(8/10) 
     ### Create fractures results ----
     
     ## nimetään muuttujat
@@ -1039,11 +1142,13 @@ pirr <- function(
       resl <- list(table=res,plot1=p1,plot2=p2)
       tulos2[[nimi]] <- resl
     }
+    incProgress(9/10) 
     
     ## Diagnose and Extra class
     tulos <- c(tulos, tulos2)
-    
+    incProgress(10/10) 
   }
+  })
   ## Final result out
   tulos
 }
