@@ -1,5 +1,5 @@
 ---
-title: "Report: OSTPRE Data Analysis (version 1.4.9)"
+title: "Report: OSTPRE Data Analysis (version 1.6.1)"
 description: "This is an analysis of OSTPRE dataset."
 date: "`r Sys.time()`"
 output: 
@@ -147,7 +147,8 @@ asis_output("Exposure diagnoses includes following diagnoses. In this table all 
 ```
 
 ```{r selected_diagnoses_chunk, echo=FALSE, eval = ("Exposure" %in% params$report_sections)}
-selected_diagnoses <- table_selected_exposure_diagnoses(dpop, exposure_diagnoses)
+## TODO toimiiko?
+selected_diagnoses <- table_summary_diagnoses(dpop, exposure_diagnoses, group = "exposure")
 DT::datatable( selected_diagnoses, 
                options = list(
                  # order = list(6, 'desc'),
@@ -192,7 +193,7 @@ asis_output("Response diagnoses includes following diagnoses on exposure group:"
 ```
 
 ```{r selected_diagnoses_chunk2, echo = FALSE}
-selected_diagnoses2 <- table_selected_response_diagnoses(dpop, response_diagnoses)
+selected_diagnoses2 <- table_summary_diagnoses(dpop, response_diagnoses, group = "response")
 DT::datatable( selected_diagnoses2, 
                options = list(
                  rownames = F

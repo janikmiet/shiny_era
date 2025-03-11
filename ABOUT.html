@@ -5,18 +5,19 @@
 <h2>Exposure Response Analysis</h2>
 <p>This tool is used for exploring population health with certain
 diagnoses. For example we want to explore sleep apnea patients (ICD-10
-code G47) and what other common diagnoses they have. Then we can select
-response diagnoses, for example hypertension (ICD-10 code I10), and
-explore how sleep apnea patients will get this diagnose during the
-time.</p>
-<p>Use regex code (ex. ^G47 | ^G31) to select diagnose groups. You can
-also select which registries are used as a source. Application is
-logging user input and runs.</p>
-<p><strong>If selected group size is under 6 person, results are not
-printed and error occur.</strong></p>
+code <code>G47</code>) and what other common diagnoses they have. Then
+we can select response diagnoses, for example hypertension (ICD-10 code
+<code>I10</code>), and explore how sleep apnea is affected to
+hypertension.</p>
+<p>To run analysis, use <em>regex</em> code (ex.
+<code>^G47 | ^G31</code>) to select diagnose groups. You can also select
+which registries are used as a source. Report can be downloaded in html
+or docx format.</p>
+<p>Application is logging user input and runs. If selected group size is
+under 6 person, results are not printed and error occur.</p>
 </div>
-<div id="useful-links" class="section level2">
-<h2>Useful links:</h2>
+<div id="links" class="section level2">
+<h2>Links:</h2>
 <ul>
 <li><a href="https://www.terveysportti.fi/apps/icd/">ICD-10 Codes
 (Terveysportti)</a></li>
@@ -30,8 +31,8 @@ Codes</a></li>
 cheatsheet</a></li>
 </ul>
 </div>
-<div id="changes" class="section level2">
-<h2>Changes</h2>
+<div id="changes-log" class="section level2">
+<h2>Changes Log</h2>
 <table>
 <colgroup>
 <col width="11%" />
@@ -47,19 +48,36 @@ cheatsheet</a></li>
 </thead>
 <tbody>
 <tr class="odd">
+<td align="left">2025/03/11</td>
+<td align="left">1.6.1</td>
+<td align="left">Functions are now tweaked better and progress messages
+available in Shiny, but works also without Shiny.</td>
+</tr>
+<tr class="even">
+<td align="left">2025/03/10</td>
+<td align="left">1.6.0</td>
+<td align="left">Minor changes, icd codes updated.</td>
+</tr>
+<tr class="odd">
+<td align="left">2025/03/03</td>
+<td align="left">1.5.9</td>
+<td align="left">Progression bars are added to the application to help
+to know what app is doing.</td>
+</tr>
+<tr class="even">
 <td align="left">2025/02/05</td>
 <td align="left">1.5.7</td>
 <td align="left">Added synthetic data. All other but Poisson results
 works with it (this is why report download does not work). Data does not
 describe real world case. Only Shows how app works.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">2025/01/18</td>
 <td align="left">1.5.6</td>
 <td align="left">Report added. Still lot of adjustment needs be
 done.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">2024/11/18</td>
 <td align="left">1.5.5</td>
 <td align="left">First version of ERA Shiny</td>

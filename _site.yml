@@ -3,12 +3,18 @@ exclude: ["*.qs", "*.xlsx", "*.docx", "*.qmd"]
 navbar:
   title: "Exposure Response Analysis"
   type: default
+  left:
+    # - icon: fa-home
+    #   href: about.html
+    # - icon: fa-person
+    #   href: index.Rmd#section-exposure
   right:
-    - text: "</> Source"
-      href: "https://github.com"
+    # - text: "</> Source"
+    - text: "Version 1.6.2"
+      href: "https://github.com/janikmiet/shiny_era"
 output:
   html_document:
-    theme: cosmo
+    theme: yeti
     highlight: textmate
     toc_depth: 3
     toc_float:

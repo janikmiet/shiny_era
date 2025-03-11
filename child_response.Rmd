@@ -23,12 +23,13 @@ Response diagnoses includes following diagnoses on exposure group:
 
 ```{r selected_diagnoses_chunk2, echo = FALSE}
 ## TODO use response_diagnoses()
-selected_diagnoses2 <- eventReactive(input$create, {
-  table_selected_response_diagnoses(dpop(), response_diagnoses())
+selected_diagnoses_response <- eventReactive(input$create, {
+  table_summary_diagnoses(dpop(), response_diagnoses(), group = "response")
+  ## TODO onko oikein. Pitaa olla koko data. & sama funktio exposurelle, tee vain yks funktio?
 })
 
 DT::dataTableOutput("tbl_selected_diagnoses2")
-output$tbl_selected_diagnoses2 <- DT::renderDataTable( selected_diagnoses2() , 
+output$tbl_selected_diagnoses2 <- DT::renderDataTable( selected_diagnoses_response() , 
                                                        options = list(
                                                          # order = list(6, 'desc'),
                                                          rownames = F

@@ -17,11 +17,11 @@ shiny::renderTable({tbl_exp_age()})
 Exposure diagnoses includes following diagnoses. In this table all cases are listed (for example if same person has ICD-8, ICD-9 and ICD-10 diagnose, all those cases will be listed).
 
 ```{r selected_diagnoses_chunk, echo = FALSE}
-selected_diagnoses <- reactive({
-  table_selected_exposure_diagnoses( dpop(), exposure_diagnoses())
+selected_diagnoses_exposure <- eventReactive(input$create,{
+  table_summary_diagnoses(dpop(), exposure_diagnoses(), group = "exposure")
 })
 DT::dataTableOutput("tbl_selected_diagnoses")
-output$tbl_selected_diagnoses <- DT::renderDataTable( selected_diagnoses() , 
+output$tbl_selected_diagnoses <- DT::renderDataTable( selected_diagnoses_exposure() , 
                                                       options = list(
                                                         # order = list(6, 'desc'),
                                                         rownames = F
@@ -29,7 +29,7 @@ output$tbl_selected_diagnoses <- DT::renderDataTable( selected_diagnoses() ,
 ```
 
 
-#### First Diagnose Registry Source
+#### Venn: First Diagnose Registry Source
 
 Venn diagram shows how the exposure diagnose codes are found in different registries. In this plot only first diagnose per person is listed.
 
@@ -40,7 +40,7 @@ renderPlot({
 ```
 
 
-#### Venn diagram: Diagnoses Registry Overlap
+#### Venn: Diagnoses Registry Overlap
 
 Venn diagram shows how the exposure diagnose codes are found in different registries. In this plot only we can see in which registries we can find selected diagnoses per patient.
 

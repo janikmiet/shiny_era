@@ -1,11 +1,10 @@
 ---
 title: "Exposure Response Analysis"
-date: "Ver. 1.5.9"
 output: 
   html_document:
     css: styles-auth.css
     toc: false
-    toc_float: false
+    toc_float: true
     number_sections: no
 runtime: shiny
 ---
@@ -26,7 +25,7 @@ auth <- callModule(
   check_credentials = check_credentials(credentials) 
 )
 
-## To add user name in app somewhere
+## To add user name in app somewhere to display
 # output$user <- renderText({auth$user})
 # textOutput("user")
 
@@ -49,23 +48,59 @@ observeEvent(input$create,{
 })
 ```
 
-## Definitions
+## Case Selection
+
+<!-- ```{r input_panel, echo=FALSE} -->
+<!-- inputPanel( -->
+<!--   textInput(inputId = "exposure_icd10", label = "Exposure ICD-10 Diagnoses:" , value = "^E11"), -->
+<!--   textInput(inputId = "exposure_icd9", label = "Exposure ICD-9 Diagnoses:" , value = "^250A"), -->
+<!--   textInput(inputId = "exposure_icd8", label = "Exposure ICD-8 Diagnoses:" , value = "^250"), -->
+<!--   checkboxGroupInput(inputId = "exposure_src", label = "Source registries:", choices = src_choices, selected = src_choices) -->
+<!-- ) -->
+<!-- inputPanel( -->
+<!--   shiny::textInput(inputId = "response_icd10", label = "Response ICD-10 Diagnoses:" , value = "^I2[0-5]"), -->
+<!--     textInput(inputId = "response_icd9", label = "Response ICD-9 Diagnoses:" , value = "^41[0-4]"), -->
+<!--   textInput(inputId = "response_icd8", label = "Response ICD-8 Diagnoses:" , value = "^41[0-4]"), -->
+<!--   checkboxGroupInput(inputId = "response_src", label = "Source registries:", choices = src_choices, selected = src_choices), -->
+<!-- ) -->
+<!-- actionButton(inputId = "create", label = "Run") -->
+<!-- ``` -->
+
+```{r input_panel, echo=FALSE}
+fluidPage(
+  # titlePanel(title = "@blabla"),
+  sidebarLayout(
+    sidebarPanel(
+      textInput(inputId = "exposure_icd10", label = "Exposure ICD-10 Diagnoses:" , value = "^E11"),
+      textInput(inputId = "exposure_icd9", label = "Exposure ICD-9 Diagnoses:" , value = "^250A"),
+      textInput(inputId = "exposure_icd8", label = "Exposure ICD-8 Diagnoses:" , value = "^250"),
+      checkboxGroupInput(inputId = "exposure_src", 
+                         label = "Source registries:", 
+                         choices = src_choices, 
+                         selected = src_choices,
+                         inline = TRUE,
+                         width = "100%"), 
+      width = 6
+    ),
+    sidebarPanel(
+      shiny::textInput(inputId = "response_icd10", label = "Response ICD-10 Diagnoses:" , value = "^I2[0-5]"),
+      textInput(inputId = "response_icd9", label = "Response ICD-9 Diagnoses:" , value = "^41[0-4]"),
+      textInput(inputId = "response_icd8", label = "Response ICD-8 Diagnoses:" , value = "^41[0-4]"),
+      checkboxGroupInput(inputId = "response_src", 
+                         label = "Source registries:", 
+                         choices = src_choices, 
+                         selected = src_choices,
+                         inline = TRUE,
+                         width = "100%"), width = 6
+    ),
+  ),
+  
+  actionButton(inputId = "create", label = "Run")
+)
+```
+
 
 ```{r data, echo=FALSE}
-inputPanel(
-  textInput(inputId = "exposure_icd10", label = "Exposure ICD-10 Diagnoses:" , value = "^E11"),
-  textInput(inputId = "exposure_icd9", label = "Exposure ICD-9 Diagnoses:" , value = "^250A"),
-  textInput(inputId = "exposure_icd8", label = "Exposure ICD-8 Diagnoses:" , value = "^250"),
-  checkboxGroupInput(inputId = "exposure_src", label = "Source registries:", choices = src_choices, selected = src_choices)
-)
-inputPanel(
-  shiny::textInput(inputId = "response_icd10", label = "Response ICD-10 Diagnoses:" , value = "^I2[0-5]"),
-    textInput(inputId = "response_icd9", label = "Response ICD-9 Diagnoses:" , value = "^41[0-4]"),
-  textInput(inputId = "response_icd8", label = "Response ICD-8 Diagnoses:" , value = "^41[0-4]"),
-  checkboxGroupInput(inputId = "response_src", label = "Source registries:", choices = src_choices, selected = src_choices),
-)
-actionButton(inputId = "create", label = "Run")
-
 ## Population definition
 dpop <- eventReactive(input$create, {
   pop_exp_resp(
