@@ -48,27 +48,9 @@ observeEvent(input$create,{
 })
 ```
 
-## Case Selection
-
-<!-- ```{r input_panel, echo=FALSE} -->
-<!-- inputPanel( -->
-<!--   textInput(inputId = "exposure_icd10", label = "Exposure ICD-10 Diagnoses:" , value = "^E11"), -->
-<!--   textInput(inputId = "exposure_icd9", label = "Exposure ICD-9 Diagnoses:" , value = "^250A"), -->
-<!--   textInput(inputId = "exposure_icd8", label = "Exposure ICD-8 Diagnoses:" , value = "^250"), -->
-<!--   checkboxGroupInput(inputId = "exposure_src", label = "Source registries:", choices = src_choices, selected = src_choices) -->
-<!-- ) -->
-<!-- inputPanel( -->
-<!--   shiny::textInput(inputId = "response_icd10", label = "Response ICD-10 Diagnoses:" , value = "^I2[0-5]"), -->
-<!--     textInput(inputId = "response_icd9", label = "Response ICD-9 Diagnoses:" , value = "^41[0-4]"), -->
-<!--   textInput(inputId = "response_icd8", label = "Response ICD-8 Diagnoses:" , value = "^41[0-4]"), -->
-<!--   checkboxGroupInput(inputId = "response_src", label = "Source registries:", choices = src_choices, selected = src_choices), -->
-<!-- ) -->
-<!-- actionButton(inputId = "create", label = "Run") -->
-<!-- ``` -->
-
 ```{r input_panel, echo=FALSE}
 fluidPage(
-  # titlePanel(title = "@blabla"),
+  # titlePanel(title = ""),
   sidebarLayout(
     sidebarPanel(
       textInput(inputId = "exposure_icd10", label = "Exposure ICD-10 Diagnoses:" , value = "^E11"),
